@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
+@theme {
+  --color-ivoire: #FAF8F5;
+  --color-ivoire-clair: #FDFBF7;
+  --color-ivoire-sombre: #F0EAE1;
+  --color-sable: #E4DCD0;
+  --color-sable-fonce: #C8BDAE;
+  --color-charbon: #141414;
+  --color-charbon-doux: #1E1E1C;
+  --color-charbon-clair: #2D2D2A;
+  --color-champagne: #C5A880;
+  --color-champagne-dore: #B89768;
+  --color-champagne-clair: #F4EFE6;
+  --color-bordure: #E6DFD3;
+  --color-bordure-sombre: #282725;
+  --font-serif: var(--font-cormorant), 'Didot', 'Bodoni MT', 'Cinzel', Georgia, serif;
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #FAF8F5;
+  --foreground: #141414;
+  --border: #E6DFD3;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Editorial Luxury Typography Utilities */
+.font-editorial {
+  font-family: var(--font-serif);
+  font-feature-settings: "liga" 1, "calt" 1;
+}
+
+.tracking-luxury {
+  letter-spacing: 0.15em;
+}
+
+.tracking-wide-luxury {
+  letter-spacing: 0.25em;
+}
+
+/* Crisp Minimalist Borders */
+.border-luxury {
+  border-color: #E6DFD3;
+}
+
+.border-luxury-dark {
+  border-color: #282725;
+}
+
+/* Selection */
+::selection {
+  background-color: #C5A880;
+  color: #141414;
+}
+
+/* Remove default scrollbar clutter */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #C8BDAE;
 }
