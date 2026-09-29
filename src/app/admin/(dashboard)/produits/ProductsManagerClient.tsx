@@ -34,7 +34,7 @@ export function ProductsManagerClient({
   const [sellMode, setSellMode] = useState<ProductSellMode>('inherit');
   const [status, setStatus] = useState<ProductStatus>('published');
   const [materialDetails, setMaterialDetails] = useState('Or blanc 750/1000 (18K)');
-  const [gemstoneDetails, setGemstoneDetails] = useState('Perle de Tahiti 11mm & Pavage Diamants');
+  const [gemstoneDetails, setGemstoneDetails] = useState('Pierre précieuse & Finition artisanale');
   const [description, setDescription] = useState('Création d’exception façonnée manuellement au sein de notre atelier parisien.');
   const [sku, setSku] = useState('PN-NOUV-01');
   const [formLoading, setFormLoading] = useState(false);
@@ -312,7 +312,7 @@ export function ProductsManagerClient({
               label="Gemmes & Nacre"
               value={gemstoneDetails}
               onChange={(e) => setGemstoneDetails(e.target.value)}
-              placeholder="Ex: Perle de Tahiti AAA 12mm & Pavage Diamants"
+              placeholder="Ex: Diamants taille brillant & Pierres fines"
             />
           </div>
 

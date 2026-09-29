@@ -50,11 +50,11 @@ export function ContactFormClient({
   if (status?.success) {
     return (
       <div className="py-12 text-center space-y-4">
-        <div className="w-12 h-12 mx-auto rounded-full bg-[#F4EFE6] flex items-center justify-center text-[#A08154]">
-          <CheckCircle2 className="w-6 h-6 stroke-[1.5]" />
+        <div className="w-12 h-12 mx-auto rounded-full bg-[#F6F1EA] flex items-center justify-center text-[#171717]">
+          <CheckCircle2 className="w-6 h-6 stroke-[1.25]" />
         </div>
-        <h3 className="font-editorial text-2xl text-[#141414]">Votre message a été transmis</h3>
-        <p className="text-xs sm:text-sm text-[#554E45] max-w-md mx-auto leading-relaxed">
+        <h3 className="font-editorial text-2xl text-[#171717]">Votre message a été transmis</h3>
+        <p className="text-xs sm:text-sm text-[#77716A] max-w-md mx-auto leading-relaxed font-light">
           {status.msg}
         </p>
         <div className="pt-4">
@@ -69,24 +69,24 @@ export function ContactFormClient({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <h2 className="font-editorial text-2xl text-[#141414]">
-          Formulaire de Correspondance Privée
+        <h2 className="font-editorial text-2xl text-[#171717]">
+          Formulaire de contact
         </h2>
-        <p className="text-xs text-[#736B5E] mt-1">
-          Renseignez vos coordonnées, notre concierge vous répondra personnellement.
+        <p className="text-xs text-[#77716A] mt-1 font-light">
+          Transmettez-nous votre message, nous vous répondrons dans les plus brefs délais.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="Votre Nom & Prénom *"
-          placeholder="Ex: Mme Claire de Latour"
+          label="Votre nom & prénom *"
+          placeholder="Votre nom"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <Input
-          label="Votre Adresse E-mail *"
+          label="Adresse e-mail *"
           type="email"
           placeholder="votre@email.com"
           required
@@ -99,64 +99,64 @@ export function ContactFormClient({
         <Input
           label="Numéro de téléphone"
           type="tel"
-          placeholder="+33 6 12 34 56 78"
+          placeholder="+33 6 00 00 00 00"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
 
         <div className="space-y-1.5">
-          <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-            Canal privilégié de réponse
+          <label className="block text-[11px] uppercase tracking-wider text-[#77716A] font-medium">
+            Canal de réponse souhaité
           </label>
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setChannel('whatsapp')}
-              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1 ${
+              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                 channel === 'whatsapp'
-                  ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                  : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                  ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                  : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
               }`}
             >
-              <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+              <MessageSquare className="w-3.5 h-3.5 stroke-[1.25]" /> WhatsApp
             </button>
             <button
               type="button"
               onClick={() => setChannel('phone')}
-              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1 ${
+              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                 channel === 'phone'
-                  ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                  : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                  ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                  : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
               }`}
             >
-              <Phone className="w-3.5 h-3.5" /> Appel
+              <Phone className="w-3.5 h-3.5 stroke-[1.25]" /> Appel
             </button>
             <button
               type="button"
               onClick={() => setChannel('email')}
-              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1 ${
+              className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                 channel === 'email'
-                  ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                  : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                  ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                  : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
               }`}
             >
-              <Send className="w-3.5 h-3.5" /> E-mail
+              <Send className="w-3.5 h-3.5 stroke-[1.25]" /> E-mail
             </button>
           </div>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-          Détail de votre demande ou souhait de rendez-vous *
+        <label className="block text-[11px] uppercase tracking-wider text-[#77716A] font-medium">
+          Votre message *
         </label>
         <textarea
           required
           rows={5}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ex: Je souhaiterais réserver une visite pour essayer un solitaire et discuter d'une création sur-mesure..."
-          className="w-full bg-[#FAF8F5] border border-[#DDD5C7] p-3 text-sm text-[#141414] focus:border-[#C5A880] focus:outline-none focus:ring-1 focus:ring-[#C5A880]"
+          placeholder="Détaillez votre souhait, question ou demande de rendez-vous..."
+          className="w-full bg-[#FCFAF7] border border-[#E7E0D7] p-3 text-xs text-[#171717] focus:border-[#171717] focus:outline-none"
         />
       </div>
 
@@ -166,7 +166,7 @@ export function ContactFormClient({
 
       <div className="pt-2 flex justify-end">
         <Button type="submit" variant="primary" size="md" disabled={loading}>
-          {loading ? 'Envoi en cours...' : 'Transmettre à l’Atelier'}
+          {loading ? 'Envoi en cours...' : 'Envoyer mon message'}
         </Button>
       </div>
     </form>

@@ -1,141 +1,160 @@
 import React from 'react';
 import Link from 'next/link';
 import { StoreSettings } from '@/types/database';
-import { MapPin, Phone, MessageSquare, Mail } from 'lucide-react';
 
 interface StorefrontFooterProps {
   settings: StoreSettings;
 }
 
 export function StorefrontFooter({ settings }: StorefrontFooterProps) {
-  return (
-    <footer className="bg-[#141414] text-[#FAF8F5] pt-16 pb-12 border-t border-[#262624]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-[#282725]">
-          {/* Brand Philosophy */}
-          <div className="md:col-span-1 space-y-4">
-            <span className="font-editorial text-2xl uppercase tracking-wider text-[#FAF8F5] block">
-              {settings.brand_name}
-            </span>
-            <p className="text-xs text-[#9E9589] leading-relaxed">
-              Haute Joaillerie parisienne dédiée à la valorisation de la perle noire de Tahiti et des pierres précieuses éthiques de premier ordre.
-            </p>
-            <div className="text-[10px] uppercase tracking-widest text-[#C5A880]">
-              Maison Fondée Place Vendôme
-            </div>
-          </div>
+  const currentYear = new Date().getFullYear();
 
-          {/* Salons & Atelier */}
-          <div className="space-y-3">
-            <h4 className="text-[11px] uppercase tracking-widest text-[#C5A880] font-medium">
-              Salons Privés
+  return (
+    <footer className="bg-[#171717] text-[#FCFAF7] pt-16 pb-12 border-t border-[#262626]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-16 border-b border-[#262626]">
+          {/* Column 1: Boutique */}
+          <div className="space-y-4">
+            <h4 className="text-xs uppercase tracking-widest text-[#B99A64] font-medium">
+              Boutique
             </h4>
-            <ul className="space-y-2 text-xs text-[#C8BDAE]">
-              <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-[#A08154] shrink-0 mt-0.5" />
-                <span>{settings.address || '18 Place Vendôme, 75001 Paris'}</span>
+            <ul className="space-y-2.5 text-xs text-[#A69B8D] font-light">
+              <li>
+                <Link href="/bijoux?tri=nouveautes" className="hover:text-[#FCFAF7] transition-colors">
+                  Nouveautés
+                </Link>
               </li>
-              <li className="pt-1 text-[#8C827A] text-[11px]">
-                Du Mardi au Samedi, sur rendez-vous exclusif uniquement.
+              <li>
+                <Link href="/bijoux" className="hover:text-[#FCFAF7] transition-colors">
+                  Tous les bijoux
+                </Link>
+              </li>
+              <li>
+                <Link href="/collections" className="hover:text-[#FCFAF7] transition-colors">
+                  Collections
+                </Link>
+              </li>
+              <li>
+                <Link href="/bijoux?categorie=bagues" className="hover:text-[#FCFAF7] transition-colors">
+                  Bagues & Solitaires
+                </Link>
+              </li>
+              <li>
+                <Link href="/bijoux?categorie=colliers" className="hover:text-[#FCFAF7] transition-colors">
+                  Colliers & Pendentifs
+                </Link>
               </li>
             </ul>
           </div>
 
-          {/* Conciergerie */}
-          <div className="space-y-3">
-            <h4 className="text-[11px] uppercase tracking-widest text-[#C5A880] font-medium">
-              Conciergerie & Contact
+          {/* Column 2: Informations */}
+          <div className="space-y-4">
+            <h4 className="text-xs uppercase tracking-widest text-[#B99A64] font-medium">
+              Informations
             </h4>
-            <ul className="space-y-2 text-xs text-[#C8BDAE]">
-              {settings.phone && (
-                <li className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-[#A08154]" />
-                  <a href={`tel:${settings.phone}`} className="hover:text-[#FAF8F5] transition-colors">
-                    {settings.phone}
+            <ul className="space-y-2.5 text-xs text-[#A69B8D] font-light">
+              <li>
+                <Link href="/a-propos" className="hover:text-[#FCFAF7] transition-colors">
+                  À propos de la marque
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-[#FCFAF7] transition-colors">
+                  Sur rendez-vous
+                </Link>
+              </li>
+              <li>
+                <Link href="/bijoux" className="hover:text-[#FCFAF7] transition-colors">
+                  Guide des créations
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 3: Aide */}
+          <div className="space-y-4">
+            <h4 className="text-xs uppercase tracking-widest text-[#B99A64] font-medium">
+              Aide & Services
+            </h4>
+            <ul className="space-y-2.5 text-xs text-[#A69B8D] font-light">
+              <li>
+                <Link href="/contact" className="hover:text-[#FCFAF7] transition-colors">
+                  Service client & Conciergerie
+                </Link>
+              </li>
+              <li>
+                <span className="text-[#A69B8D]">Livraison suivie offerte</span>
+              </li>
+              <li>
+                <span className="text-[#A69B8D]">Retours sous 30 jours</span>
+              </li>
+              {settings.contact_email && (
+                <li>
+                  <a href={`mailto:${settings.contact_email}`} className="hover:text-[#FCFAF7] transition-colors">
+                    {settings.contact_email}
                   </a>
                 </li>
               )}
+            </ul>
+          </div>
+
+          {/* Column 4: Réseaux & Contact */}
+          <div className="space-y-4">
+            <h4 className="text-xs uppercase tracking-widest text-[#B99A64] font-medium">
+              Contact & Réseaux
+            </h4>
+            <div className="space-y-3 text-xs text-[#A69B8D] font-light">
+              <p>
+                Pour toute demande d’information ou commande sur mesure, notre équipe vous répond avec attention.
+              </p>
               {settings.whatsapp && (
-                <li className="flex items-center gap-2">
-                  <MessageSquare className="w-3.5 h-3.5 text-[#A08154]" />
+                <div>
                   <a
                     href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-[#FAF8F5] transition-colors"
+                    className="inline-flex items-center text-xs text-[#FCFAF7] hover:underline hover-underline"
                   >
-                    WhatsApp Concierge ({settings.whatsapp})
+                    WhatsApp : {settings.whatsapp}
                   </a>
-                </li>
+                </div>
               )}
-              <li className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-[#A08154]" />
-                <a href={`mailto:${settings.contact_email}`} className="hover:text-[#FAF8F5] transition-colors">
-                  {settings.contact_email}
-                </a>
-              </li>
               {settings.instagram_url && (
-                <li className="flex items-center gap-2 pt-1">
-                  <svg className="w-3.5 h-3.5 text-[#A08154]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-                    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-                  </svg>
+                <div>
                   <a
                     href={settings.instagram_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-[#FAF8F5] transition-colors"
+                    className="inline-flex items-center text-xs text-[#FCFAF7] hover:underline hover-underline"
                   >
-                    @perlenoirejoaillerie
+                    Instagram
                   </a>
-                </li>
+                </div>
               )}
-            </ul>
-          </div>
-
-          {/* Collections Navigation */}
-          <div className="space-y-3">
-            <h4 className="text-[11px] uppercase tracking-widest text-[#C5A880] font-medium">
-              Navigation
-            </h4>
-            <ul className="space-y-2 text-xs text-[#A89E90]">
-              <li>
-                <Link href="/bijoux" className="hover:text-[#FAF8F5] transition-colors">
-                  Toutes les Créations
-                </Link>
-              </li>
-              <li>
-                <Link href="/collections" className="hover:text-[#FAF8F5] transition-colors">
-                  Collections Thématiques
-                </Link>
-              </li>
-              <li>
-                <Link href="/a-propos" className="hover:text-[#FAF8F5] transition-colors">
-                  L’Atelier & Savoir-Faire
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-[#FAF8F5] transition-colors">
-                  Demande de Rendez-vous
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="hover:text-[#C5A880] transition-colors text-[11px] flex items-center gap-1">
-                  <span>Accès Administration</span>
-                </Link>
-              </li>
-            </ul>
+            </div>
           </div>
         </div>
 
-        {/* Bottom credits */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#736B5E] gap-4">
-          <p>© {new Date().getFullYear()} {settings.brand_name}. Tous droits réservés.</p>
-          <div className="flex items-center space-x-6 text-[11px]">
-            <span>Mentions Légales</span>
-            <span>Confidentialité</span>
-            <span>Certificats & Gemmologie</span>
+        {/* Bottom Bar: Legal & Copyright */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#77716A] gap-4 font-light">
+          <p>© {currentYear} {settings.brand_name || 'Perle Noire'}. Tous droits réservés.</p>
+
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            <span className="hover:text-[#FCFAF7] transition-colors cursor-pointer">
+              Mentions légales
+            </span>
+            <span className="hover:text-[#FCFAF7] transition-colors cursor-pointer">
+              CGV
+            </span>
+            <span className="hover:text-[#FCFAF7] transition-colors cursor-pointer">
+              Confidentialité
+            </span>
+            <span className="hover:text-[#FCFAF7] transition-colors cursor-pointer">
+              Livraison & Retours
+            </span>
+            <Link href="/admin" className="hover:text-[#B99A64] transition-colors">
+              Admin
+            </Link>
           </div>
         </div>
       </div>

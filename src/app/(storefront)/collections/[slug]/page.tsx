@@ -13,11 +13,11 @@ export async function generateMetadata(props: {
   const collection = collections.find((c) => c.slug === slug);
 
   if (!collection) {
-    return { title: 'Collection Introuvable' };
+    return { title: 'Collection non trouvée' };
   }
 
   return {
-    title: `Collection ${collection.name} | Perle Noire Joaillerie`,
+    title: `${collection.name} | Perle Noire`,
     description: collection.description || undefined,
   };
 }
@@ -39,41 +39,58 @@ export default async function CollectionDetailPage(props: {
   ]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-      <nav className="text-[11px] uppercase tracking-widest text-[#8C827A] mb-8 flex items-center space-x-2">
-        <Link href="/" className="hover:text-[#141414] transition-colors">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      {/* Breadcrumb */}
+      <nav
+        aria-label="Fil d'ariane"
+        className="text-[11px] uppercase tracking-widest text-[#77716A] mb-8 flex items-center space-x-2 font-light"
+      >
+        <Link href="/" className="hover:text-[#171717] transition-colors">
           Accueil
         </Link>
         <span>/</span>
-        <Link href="/collections" className="hover:text-[#141414] transition-colors">
+        <Link href="/collections" className="hover:text-[#171717] transition-colors">
           Collections
         </Link>
         <span>/</span>
-        <span className="text-[#141414] font-medium">{collection.name}</span>
+        <span className="text-[#171717]">{collection.name}</span>
       </nav>
 
-      <div className="text-center max-w-2xl mx-auto mb-16">
-        <span className="text-[11px] uppercase tracking-widest text-[#A08154] font-medium block mb-2">
-          Collection Joaillière
+      {/* Collection Header */}
+      <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
+        <span className="text-[11px] uppercase tracking-eyebrow text-[#77716A] font-light block">
+          Collection
         </span>
-        <h1 className="font-editorial text-4xl sm:text-5xl text-[#141414] font-normal">
+        <h1 className="font-editorial text-4xl sm:text-5xl text-[#171717] font-normal uppercase tracking-editorial">
           {collection.name}
         </h1>
-        <div className="w-12 h-px bg-[#C5A880] mx-auto mt-4" />
-        <p className="text-xs sm:text-sm text-[#736B5E] mt-4 font-light leading-relaxed">
-          {collection.description}
-        </p>
+        {collection.description && (
+          <p className="text-xs sm:text-sm text-[#77716A] font-light leading-relaxed max-w-md mx-auto">
+            {collection.description}
+          </p>
+        )}
       </div>
 
+      {/* Products Grid */}
       {products.length === 0 ? (
-        <div className="text-center py-16 bg-[#F5F1EA] border border-[#E6DFD3] p-8">
-          <p className="font-editorial text-xl text-[#141414]">Pièces en cours de sertissage</p>
-          <p className="text-xs text-[#736B5E] mt-2">
-            Les créations de cette collection sont actuellement en cours d’élaboration dans notre atelier.
+        <div className="text-center py-20 bg-[#F6F1EA] border border-[#E7E0D7] p-8 space-y-3">
+          <p className="font-editorial text-xl text-[#171717]">
+            Pièces en préparation
           </p>
+          <p className="text-xs text-[#77716A] font-light max-w-sm mx-auto">
+            Les pièces de cette collection sont actuellement en cours d’élaboration.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/bijoux"
+              className="inline-block px-6 py-2.5 bg-[#171717] text-[#FCFAF7] text-xs uppercase tracking-wider hover:bg-[#2b2b2b] transition-colors"
+            >
+              Voir tous les bijoux
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} settings={settings} />
           ))}

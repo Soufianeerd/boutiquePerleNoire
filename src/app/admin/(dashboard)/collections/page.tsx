@@ -21,7 +21,7 @@ export default async function AdminCollectionsPage() {
             Collections Thématiques
           </h1>
           <p className="text-xs text-[#9E9589] mt-1">
-            Organisez vos bijoux en récits et collections artistiques (L’Éclat de Tahiti, Nuit Constellée, etc.).
+            Organisez vos bijoux en récits et univers de collection (Collection Épure, Minérale, etc.).
           </p>
         </div>
         <Button variant="champagne" size="sm" className="flex items-center gap-2">

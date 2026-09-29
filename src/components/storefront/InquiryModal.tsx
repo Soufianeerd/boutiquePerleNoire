@@ -21,8 +21,8 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
   const [channel, setChannel] = useState<'whatsapp' | 'phone' | 'email' | 'contact_form'>('whatsapp');
   const [message, setMessage] = useState(
     product
-      ? `Bonjour, je souhaiterais des renseignements ou réserver un rendez-vous pour découvrir : ${product.name} (Réf: ${product.sku || 'Atelier'}).`
-      : 'Bonjour, je souhaiterais prendre contact avec le concierge de la Maison Perle Noire.'
+      ? `Bonjour, je souhaiterais des renseignements concernant la création « ${product.name} » (Réf: ${product.sku || 'Atelier'}).`
+      : 'Bonjour, je souhaiterais prendre contact avec votre service clientèle.'
   );
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ success?: boolean; msg?: string } | null>(null);
@@ -56,17 +56,17 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      subtitle="Conciergerie Privée"
-      title={product ? `Demande concernant ${product.name}` : 'Prendre Rendez-vous à l’Atelier'}
+      subtitle="Demande d’information"
+      title={product ? `Au sujet de : ${product.name}` : 'Nous contacter'}
       maxWidth="md"
     >
       {status?.success ? (
         <div className="py-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto rounded-full bg-[#F4EFE6] flex items-center justify-center text-[#A08154]">
-            <CheckCircle2 className="w-6 h-6 stroke-[1.5]" />
+          <div className="w-12 h-12 mx-auto rounded-full bg-[#F6F1EA] flex items-center justify-center text-[#171717]">
+            <CheckCircle2 className="w-6 h-6 stroke-[1.25]" />
           </div>
-          <h3 className="font-editorial text-2xl text-[#141414]">Demande bien reçue</h3>
-          <p className="text-sm text-[#554E45] max-w-sm mx-auto leading-relaxed">
+          <h3 className="font-editorial text-2xl text-[#171717]">Demande transmise</h3>
+          <p className="text-xs text-[#77716A] max-w-sm mx-auto leading-relaxed font-light">
             {status.msg}
           </p>
           <div className="pt-4">
@@ -78,13 +78,13 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {product && (
-            <div className="p-3.5 bg-[#F5F1EA] border border-[#E6DFD3] text-xs text-[#554E45] flex items-center justify-between">
+            <div className="p-3.5 bg-[#F6F1EA] border border-[#E7E0D7] text-xs text-[#171717] flex items-center justify-between">
               <div>
-                <span className="font-medium text-[#141414] block">{product.name}</span>
-                <span className="text-[11px] text-[#736B5E]">{product.material_details || 'Haute Joaillerie'}</span>
+                <span className="font-medium block">{product.name}</span>
+                <span className="text-[11px] text-[#77716A]">{product.material_details || 'Joaillerie'}</span>
               </div>
               {product.base_price > 0 && (
-                <span className="font-editorial text-sm text-[#141414]">
+                <span className="font-editorial text-sm text-[#171717]">
                   {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(product.base_price)}
                 </span>
               )}
@@ -94,13 +94,13 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nom complet *"
-              placeholder="Ex: Mme Claire de Latour"
+              placeholder="Votre nom"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
             <Input
-              label="E-mail de contact *"
+              label="Adresse e-mail *"
               type="email"
               placeholder="votre@email.com"
               required
@@ -111,15 +111,15 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Numéro de téléphone"
+              label="Téléphone"
               type="tel"
-              placeholder="+33 6 12 34 56 78"
+              placeholder="+33 6 00 00 00 00"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
             <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-                Canal de contact privilégié
+              <label className="block text-[11px] uppercase tracking-wider text-[#77716A] font-medium">
+                Canal de réponse souhaité
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -127,48 +127,48 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
                   onClick={() => setChannel('whatsapp')}
                   className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                     channel === 'whatsapp'
-                      ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                      : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                      ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                      : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
                   }`}
                 >
-                  <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                  <MessageSquare className="w-3.5 h-3.5 stroke-[1.25]" /> WhatsApp
                 </button>
                 <button
                   type="button"
                   onClick={() => setChannel('phone')}
                   className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                     channel === 'phone'
-                      ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                      : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                      ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                      : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
                   }`}
                 >
-                  <Phone className="w-3.5 h-3.5" /> Appel
+                  <Phone className="w-3.5 h-3.5 stroke-[1.25]" /> Appel
                 </button>
                 <button
                   type="button"
                   onClick={() => setChannel('email')}
                   className={`py-2 text-[11px] border transition-colors flex items-center justify-center gap-1.5 ${
                     channel === 'email'
-                      ? 'border-[#141414] bg-[#141414] text-[#FAF8F5]'
-                      : 'border-[#DDD5C7] bg-[#FAF8F5] text-[#554E45] hover:border-[#141414]'
+                      ? 'border-[#171717] bg-[#171717] text-[#FCFAF7]'
+                      : 'border-[#E7E0D7] bg-[#FCFAF7] text-[#77716A] hover:border-[#171717]'
                   }`}
                 >
-                  <Send className="w-3.5 h-3.5" /> E-mail
+                  <Send className="w-3.5 h-3.5 stroke-[1.25]" /> E-mail
                 </button>
               </div>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-              Votre message ou souhait particulier *
+            <label className="block text-[11px] uppercase tracking-wider text-[#77716A] font-medium">
+              Votre message ou question *
             </label>
             <textarea
               required
               rows={4}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full bg-[#FAF8F5] border border-[#DDD5C7] p-3 text-sm text-[#141414] focus:border-[#C5A880] focus:outline-none focus:ring-1 focus:ring-[#C5A880]"
+              className="w-full bg-[#FCFAF7] border border-[#E7E0D7] p-3 text-xs text-[#171717] focus:border-[#171717] focus:outline-none"
             />
           </div>
 
@@ -181,7 +181,7 @@ export function InquiryModal({ isOpen, onClose, product }: InquiryModalProps) {
               Annuler
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={loading}>
-              {loading ? 'Transmission...' : 'Envoyer ma Demande'}
+              {loading ? 'Transmission...' : 'Envoyer ma demande'}
             </Button>
           </div>
         </form>

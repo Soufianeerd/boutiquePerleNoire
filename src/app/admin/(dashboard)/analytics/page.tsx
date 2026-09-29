@@ -77,7 +77,7 @@ export default function AdminAnalyticsPage() {
 
           <div>
             <div className="flex justify-between text-xs text-[#9E9589] mb-1">
-              <span>Rendez-vous Salons Place Vendôme (Formulaire)</span>
+              <span>Demandes de rendez-vous (Formulaire)</span>
               <span className="font-mono text-[#FAF8F5]">26%</span>
             </div>
             <div className="w-full h-2 bg-[#242422]">

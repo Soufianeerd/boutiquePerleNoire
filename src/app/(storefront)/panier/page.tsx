@@ -16,42 +16,35 @@ export default async function PanierPage() {
   if (!settings.commerce_enabled) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20 text-center space-y-8">
-        <div className="w-16 h-16 mx-auto rounded-full bg-[#F5F1EA] border border-[#E6DFD3] flex items-center justify-center text-[#A08154]">
-          <Lock className="w-7 h-7 stroke-[1.5]" />
+        <div className="w-16 h-16 mx-auto rounded-full bg-[#F6F1EA] border border-[#E7E0D7] flex items-center justify-center text-[#171717]">
+          <Lock className="w-6 h-6 stroke-[1.25]" />
         </div>
 
         <div className="space-y-3">
-          <span className="text-[11px] uppercase tracking-widest text-[#A08154] font-semibold block">
-            Mode Vitrine Exclusif Actif
+          <span className="text-[11px] uppercase tracking-eyebrow text-[#77716A] font-light block">
+            Mode Vitrine Actif
           </span>
-          <h1 className="font-editorial text-3xl sm:text-4xl text-[#141414] font-normal">
-            Le Panier en Ligne est Temporairement Désactivé
+          <h1 className="font-editorial text-3xl sm:text-4xl text-[#171717] font-normal">
+            Le panier en ligne est actuellement désactivé
           </h1>
-          <div className="w-12 h-px bg-[#C5A880] mx-auto mt-4" />
+          <div className="w-12 h-px bg-[#B99A64] mx-auto mt-4" />
         </div>
 
-        <p className="text-xs sm:text-sm text-[#554E45] max-w-lg mx-auto font-light leading-relaxed">
-          La Maison Perle Noire opère actuellement en mode vitrine éditoriale. Les acquisitions s’effectuent en salon privé à la Place Vendôme ou auprès de notre conciergerie personnalisée.
+        <p className="text-xs sm:text-sm text-[#77716A] max-w-lg mx-auto font-light leading-relaxed">
+          La boutique opère actuellement en mode vitrine éditoriale. Les acquisitions s’effectuent sur demande auprès de notre service client.
         </p>
 
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/contact">
             <Button variant="primary" size="md">
-              Contacter le Concierge Joaillier
+              Nous contacter
             </Button>
           </Link>
           <Link href="/bijoux">
             <Button variant="outline" size="md">
-              Explorer les Créations
+              Explorer les créations
             </Button>
           </Link>
-        </div>
-
-        <div className="pt-8 border-t border-[#E6DFD3] text-[11px] text-[#736B5E]">
-          <span>Administrateur de la bijouterie ? Activez l’e-commerce en 1 clic dans </span>
-          <Link href="/admin/parametres" className="underline text-[#141414] font-medium">
-            Paramètres &gt; Mode de Vente
-          </Link>.
         </div>
       </div>
     );
@@ -61,23 +54,23 @@ export default async function PanierPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
       <div className="text-center max-w-xl mx-auto mb-12">
-        <span className="text-[11px] uppercase tracking-widest text-[#A08154] font-medium block mb-2">
-          Sélection Joaillière
+        <span className="text-[11px] uppercase tracking-eyebrow text-[#77716A] font-light block mb-2">
+          Sélection
         </span>
-        <h1 className="font-editorial text-3xl sm:text-4xl text-[#141414] font-normal">
-          Votre Panier d’Acquisition
+        <h1 className="font-editorial text-3xl sm:text-4xl text-[#171717] font-normal">
+          Votre Panier
         </h1>
-        <div className="w-10 h-px bg-[#C5A880] mx-auto mt-3" />
+        <div className="w-10 h-px bg-[#B99A64] mx-auto mt-3" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Cart items listing */}
-        <div className="lg:col-span-8 bg-[#FAF8F5] border border-[#E6DFD3] p-6 space-y-6">
-          <div className="py-4 border-b border-[#EAE4D9] flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[#141414] font-medium">
+        <div className="lg:col-span-8 bg-[#FCFAF7] border border-[#E7E0D7] p-6 space-y-6">
+          <div className="py-4 border-b border-[#E7E0D7] flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider text-[#171717] font-medium">
               Création sélectionnée
             </span>
-            <span className="text-xs uppercase tracking-wider text-[#141414] font-medium">
+            <span className="text-xs uppercase tracking-wider text-[#171717] font-medium">
               Prix
             </span>
           </div>
@@ -85,24 +78,24 @@ export default async function PanierPage() {
           {/* Sample cart item representation */}
           <div className="flex items-center justify-between gap-4 py-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-[#F0EAE1] border border-[#DDD5C7] flex items-center justify-center shrink-0">
-                <ShoppingBag className="w-6 h-6 text-[#A08154]" />
+              <div className="w-16 h-16 bg-[#F6F1EA] border border-[#E7E0D7] flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-6 h-6 text-[#171717] stroke-[1.25]" />
               </div>
               <div>
-                <h3 className="font-editorial text-lg text-[#141414]">
-                  Bague Solitaire Éclipse Noire
+                <h3 className="font-editorial text-lg text-[#171717]">
+                  Bague Solitaire Épure
                 </h3>
-                <p className="text-[11px] text-[#736B5E]">Taille 52 • Or Blanc 18K & Perle de Tahiti</p>
-                <span className="text-[10px] text-[#8C827A] uppercase tracking-wider block mt-1">Qté : 1</span>
+                <p className="text-[11px] text-[#77716A] font-light">Taille 52 • Or Blanc 18K</p>
+                <span className="text-[10px] text-[#77716A] uppercase tracking-wider block mt-1">Qté : 1</span>
               </div>
             </div>
-            <span className="font-editorial text-lg text-[#141414]">
-              3 850,00 €
+            <span className="font-editorial text-lg text-[#171717]">
+              1 850,00 €
             </span>
           </div>
 
-          <div className="pt-4 border-t border-[#EAE4D9] text-right">
-            <Link href="/bijoux" className="text-xs uppercase tracking-wider text-[#736B5E] hover:text-[#141414] underline">
+          <div className="pt-4 border-t border-[#E7E0D7] text-right">
+            <Link href="/bijoux" className="text-xs uppercase tracking-wider text-[#77716A] hover:text-[#171717] hover-underline">
               Continuer mes sélections
             </Link>
           </div>

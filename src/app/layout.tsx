@@ -17,21 +17,20 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Perle Noire | Haute Joaillerie & Perles de Tahiti',
-    template: '%s | Perle Noire Joaillerie',
+    default: 'Perle Noire | Joaillerie Précieuse',
+    template: '%s | Perle Noire',
   },
   description:
-    'Maison de Haute Joaillerie située Place Vendôme à Paris. Créations exclusives façonnées autour des perles rares de Tahiti, d’or 18 carats et de diamants certifiés.',
+    'Découvrez des créations joaillières contemporaines et intemporelles, pensées pour sublimer chaque instant.',
   keywords: [
-    'Haute Joaillerie',
+    'Joaillerie',
+    'Bijoux précieux',
+    'Bagues',
+    'Colliers',
+    'Bracelets',
+    'Boucles d’oreilles',
     'Perle Noire',
-    'Perle de Tahiti',
-    'Place Vendôme',
-    'Bague solitaire',
-    'Or 18 carats',
-    'Joaillerie de luxe',
   ],
-  authors: [{ name: 'Perle Noire Joaillerie Paris' }],
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
 };
 
@@ -45,7 +44,7 @@ export default function RootLayout({
       lang="fr"
       className={`${cormorantGaramond.variable} ${geistSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#FAF8F5] text-[#141414]">
+      <body className="min-h-full flex flex-col bg-[#FCFAF7] text-[#171717]">
         {children}
       </body>
     </html>

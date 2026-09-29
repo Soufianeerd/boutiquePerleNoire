@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { StoreSettings } from '@/types/database';
-import { ShoppingBag, Menu, X, ShieldCheck } from 'lucide-react';
-import { InquiryModal } from './InquiryModal';
+import { ShoppingBag, Search, Menu, X } from 'lucide-react';
+import { SearchModal } from './SearchModal';
 
 interface StorefrontHeaderProps {
   settings: StoreSettings;
@@ -14,33 +14,51 @@ interface StorefrontHeaderProps {
 export function StorefrontHeader({ settings }: StorefrontHeaderProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navigation = [
-    { name: 'Créations', href: '/bijoux' },
+    { name: 'Nouveautés', href: '/bijoux?tri=nouveautes' },
+    { name: 'Bijoux', href: '/bijoux' },
     { name: 'Collections', href: '/collections' },
-    { name: 'La Maison', href: '/a-propos' },
-    { name: 'Conciergerie & Salons', href: '/contact' },
+    { name: 'À propos', href: '/a-propos' },
+    { name: 'Contact', href: '/contact' },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-xs border-b border-[#E6DFD3] transition-colors">
+      <header
+        className={`sticky top-0 z-40 bg-[#FCFAF7]/95 backdrop-blur-md transition-all duration-300 ${
+          isScrolled ? 'border-b border-[#E7E0D7] shadow-[0_2px_12px_rgba(0,0,0,0.02)]' : 'border-b border-[#E7E0D7]/60'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-18 sm:h-20">
             {/* Mobile menu trigger */}
             <div className="flex items-center lg:hidden">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-[#141414] hover:text-[#A08154] transition-colors"
-                aria-label="Ouvrir le menu"
+                className="p-2 -ml-2 text-[#171717] hover:text-[#77716A] transition-colors"
+                aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               >
-                {mobileMenuOpen ? <X className="w-5 h-5 stroke-[1.5]" /> : <Menu className="w-5 h-5 stroke-[1.5]" />}
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5 stroke-[1.25]" />
+                ) : (
+                  <Menu className="w-5 h-5 stroke-[1.25]" />
+                )}
               </button>
             </div>
 
-            {/* Main Navigation (Desktop) */}
+            {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
@@ -48,8 +66,10 @@ export function StorefrontHeader({ settings }: StorefrontHeaderProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`text-[11px] uppercase tracking-widest transition-colors ${
-                      isActive ? 'text-[#141414] font-semibold border-b border-[#141414] pb-0.5' : 'text-[#554E45] hover:text-[#141414]'
+                    className={`text-xs tracking-wider transition-colors hover-underline ${
+                      isActive
+                        ? 'text-[#171717] font-medium'
+                        : 'text-[#77716A] hover:text-[#171717]'
                     }`}
                   >
                     {item.name}
@@ -58,97 +78,97 @@ export function StorefrontHeader({ settings }: StorefrontHeaderProps) {
               })}
             </nav>
 
-            {/* Brand Logo / Monogram */}
+            {/* Brand Logo */}
             <div className="text-center">
-              <Link href="/" className="inline-block group">
-                <span className="font-editorial text-2xl sm:text-3xl tracking-wide uppercase text-[#141414] block leading-none">
-                  {settings.brand_name}
+              <Link href="/" className="inline-block group py-2">
+                <span className="font-editorial text-2xl sm:text-3xl tracking-wide uppercase text-[#171717] block leading-none font-normal">
+                  {settings.brand_name || 'Perle Noire'}
                 </span>
-                <span className="text-[9px] uppercase tracking-[0.3em] text-[#8C827A] block mt-1">
-                  Place Vendôme Paris
+                <span className="text-[9px] uppercase tracking-[0.25em] text-[#77716A] block mt-1 font-light">
+                  Joaillerie
                 </span>
               </Link>
             </div>
 
-            {/* Right Action Icons & Mode indicator */}
-            <div className="flex items-center space-x-4">
-              {/* Quick Admin Access link */}
-              <Link
-                href="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[#736B5E] hover:text-[#141414] px-2.5 py-1 border border-[#DDD5C7] hover:border-[#141414] transition-colors"
-                title="Accès Administration & Gestion des Modes"
+            {/* Right Action Icons */}
+            <div className="flex items-center space-x-3 sm:space-x-5">
+              {/* Search trigger */}
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="p-2 text-[#171717] hover:text-[#77716A] transition-colors flex items-center gap-1.5"
+                aria-label="Rechercher"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#A08154]" />
-                <span>Admin</span>
-              </Link>
+                <Search className="w-4.5 h-4.5 stroke-[1.25]" />
+                <span className="hidden md:inline text-xs tracking-wider text-[#77716A] font-light">
+                  Recherche
+                </span>
+              </button>
 
-              {settings.commerce_enabled ? (
-                /* E-Commerce Active: Shopping Bag */
+              {/* Cart: ONLY IF commerce_enabled = true */}
+              {settings.commerce_enabled && (
                 <Link
                   href="/panier"
-                  className="relative p-2 text-[#141414] hover:text-[#A08154] transition-colors flex items-center gap-1.5"
-                  aria-label="Mon Panier"
+                  className="p-2 text-[#171717] hover:text-[#77716A] transition-colors flex items-center gap-1.5 relative"
+                  aria-label="Panier"
                 >
-                  <ShoppingBag className="w-5 h-5 stroke-[1.5]" />
-                  <span className="hidden md:inline text-[11px] uppercase tracking-wider font-medium">Panier</span>
+                  <ShoppingBag className="w-4.5 h-4.5 stroke-[1.25]" />
+                  <span className="hidden md:inline text-xs tracking-wider font-light">
+                    Panier
+                  </span>
                 </Link>
-              ) : (
-                /* Vitrine Mode: Private Appointment CTA */
-                <button
-                  type="button"
-                  onClick={() => setInquiryOpen(true)}
-                  className="hidden sm:inline-flex items-center text-[10px] uppercase tracking-widest px-3.5 py-2 bg-[#141414] text-[#FAF8F5] hover:bg-[#2D2D2A] transition-colors"
-                >
-                  Rendez-vous
-                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Mobile Dropdown Navigation */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-[#E6DFD3] bg-[#FAF8F5] px-6 py-6 space-y-4">
-            <nav className="flex flex-col space-y-3">
+          <div className="lg:hidden border-t border-[#E7E0D7] bg-[#FCFAF7] px-6 py-8 space-y-6 animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col space-y-4">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-xs uppercase tracking-widest text-[#141414] py-1 border-b border-[#F0EAE1]"
+                  className="font-editorial text-xl text-[#171717] py-1 border-b border-[#E7E0D7]/50"
                 >
                   {item.name}
                 </Link>
               ))}
             </nav>
-            <div className="pt-4 flex flex-col gap-2">
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center text-[11px] uppercase tracking-wider text-[#736B5E] py-2 border border-[#DDD5C7]"
+
+            <div className="pt-4 border-t border-[#E7E0D7] flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setSearchOpen(true);
+                }}
+                className="flex items-center gap-2 text-xs tracking-wider text-[#77716A] py-2"
               >
-                Espace Administrateur
-              </Link>
-              {!settings.commerce_enabled && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setInquiryOpen(true);
-                  }}
-                  className="w-full text-center text-[11px] uppercase tracking-wider bg-[#141414] text-[#FAF8F5] py-2.5"
+                <Search className="w-4 h-4 stroke-[1.25]" />
+                <span>Rechercher un bijou</span>
+              </button>
+
+              {settings.commerce_enabled && (
+                <Link
+                  href="/panier"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 text-xs tracking-wider text-[#171717] py-2"
                 >
-                  Prendre Rendez-vous
-                </button>
+                  <ShoppingBag className="w-4 h-4 stroke-[1.25]" />
+                  <span>Mon panier</span>
+                </Link>
               )}
             </div>
           </div>
         )}
       </header>
 
-      <InquiryModal
-        isOpen={inquiryOpen}
-        onClose={() => setInquiryOpen(false)}
+      <SearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
       />
     </>
   );
