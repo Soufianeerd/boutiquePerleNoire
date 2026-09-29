@@ -34,6 +34,19 @@ export async function getInventoryAdmin(): Promise<{
   isConfigured: boolean;
   error?: string;
 }> {
+  try {
+    await requireAdmin();
+  } catch (authError: unknown) {
+    return {
+      rows: [],
+      movements: [],
+      lowStockCount: 0,
+      lowStockThreshold: 2,
+      isConfigured: false,
+      error: authError instanceof Error ? authError.message : 'Non autorisé',
+    };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return {
@@ -120,7 +133,8 @@ export async function getInventoryAdmin(): Promise<{
 }
 
 /**
- * Admin: Update stock quantity for a variant or standalone product with mandatory movement record.
+ * Admin: Update stock quantity atomically via PostgreSQL RPC admin_adjust_stock.
+ * Guarantees that stock modification cannot succeed without its audit movement.
  */
 export async function adjustStockAction(payload: unknown): Promise<{
   success: boolean;
@@ -143,11 +157,35 @@ export async function adjustStockAction(payload: unknown): Promise<{
     const validated = InventoryAdjustmentSchema.parse(payload);
     const supabase = await createClient();
 
+    // 1. Try atomic PostgreSQL RPC admin_adjust_stock
+    const { data: rpcData, error: rpcError } = await supabase.rpc('admin_adjust_stock', {
+      p_product_id: validated.product_id || null,
+      p_variant_id: validated.variant_id || null,
+      p_new_quantity: validated.new_quantity,
+      p_reason: validated.reason,
+      p_reference_id: validated.reference_id || null,
+    });
+
+    if (!rpcError && rpcData) {
+      revalidatePath('/admin/stocks');
+      revalidatePath('/admin/produits');
+      revalidatePath('/admin');
+      return {
+        success: true,
+        newStock: Number(rpcData.new_quantity ?? validated.new_quantity),
+      };
+    }
+
+    // If RPC failed due to validation/business error, propagate immediately
+    if (rpcError && !rpcError.message.includes('function public.admin_adjust_stock') && !rpcError.message.includes('could not find function')) {
+      return { success: false, error: rpcError.message };
+    }
+
+    // 2. Strict Fallback: Sequential update with immediate rollback on audit failure
     let previousQuantity = 0;
     let targetProductId = validated.product_id;
 
     if (validated.variant_id) {
-      // 1. Fetch current variant stock
       const { data: variant, error: varErr } = await supabase
         .from('product_variants')
         .select('product_id, stock_quantity')
@@ -161,7 +199,6 @@ export async function adjustStockAction(payload: unknown): Promise<{
       previousQuantity = variant.stock_quantity;
       targetProductId = variant.product_id;
 
-      // 2. Update variant stock
       const { error: updateErr } = await supabase
         .from('product_variants')
         .update({
@@ -171,8 +208,33 @@ export async function adjustStockAction(payload: unknown): Promise<{
         .eq('id', validated.variant_id);
 
       if (updateErr) return { success: false, error: updateErr.message };
+
+      const difference = validated.new_quantity - previousQuantity;
+
+      // Insert audit movement - if it fails, rollback the stock change immediately
+      const { error: movErr } = await supabase.from('inventory_movements').insert({
+        product_id: targetProductId || null,
+        variant_id: validated.variant_id,
+        change_amount: difference,
+        previous_quantity: previousQuantity,
+        new_quantity: validated.new_quantity,
+        reason: validated.reason,
+        reference_id: validated.reference_id || null,
+        created_by: admin.id,
+      });
+
+      if (movErr) {
+        // Rollback stock update to guarantee audit trail integrity
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: previousQuantity })
+          .eq('id', validated.variant_id);
+        return {
+          success: false,
+          error: `Échec de l'enregistrement de l'audit de stock : ${movErr.message}. Modification annulée.`,
+        };
+      }
     } else if (validated.product_id) {
-      // 1. Fetch current product direct stock
       const { data: product, error: prodErr } = await supabase
         .from('products')
         .select('stock_quantity')
@@ -185,7 +247,6 @@ export async function adjustStockAction(payload: unknown): Promise<{
 
       previousQuantity = product.stock_quantity ?? 0;
 
-      // 2. Update product stock
       const { error: updateErr } = await supabase
         .from('products')
         .update({
@@ -195,41 +256,52 @@ export async function adjustStockAction(payload: unknown): Promise<{
         .eq('id', validated.product_id);
 
       if (updateErr) return { success: false, error: updateErr.message };
+
+      const difference = validated.new_quantity - previousQuantity;
+
+      const { error: movErr } = await supabase.from('inventory_movements').insert({
+        product_id: validated.product_id,
+        variant_id: null,
+        change_amount: difference,
+        previous_quantity: previousQuantity,
+        new_quantity: validated.new_quantity,
+        reason: validated.reason,
+        reference_id: validated.reference_id || null,
+        created_by: admin.id,
+      });
+
+      if (movErr) {
+        // Rollback stock update
+        await supabase
+          .from('products')
+          .update({ stock_quantity: previousQuantity })
+          .eq('id', validated.product_id);
+        return {
+          success: false,
+          error: `Échec de l'enregistrement de l'audit de stock : ${movErr.message}. Modification annulée.`,
+        };
+      }
     } else {
       return { success: false, error: 'Veuillez spécifier un produit ou une variante' };
     }
 
-    const difference = validated.new_quantity - previousQuantity;
-
-    // 3. Insert into inventory_movements
-    const { error: movErr } = await supabase.from('inventory_movements').insert({
-      product_id: targetProductId || null,
-      variant_id: validated.variant_id || null,
-      change_amount: difference,
-      previous_quantity: previousQuantity,
-      new_quantity: validated.new_quantity,
-      reason: validated.reason,
-      reference_id: validated.reference_id || null,
-      created_by: admin.id,
-    });
-
-    if (movErr) {
-      console.error('Inventory movement log error:', movErr.message);
-    }
-
-    // 4. Activity log
-    await supabase.from('activity_logs').insert({
+    // Critical Activity Log
+    const { error: actErr } = await supabase.from('activity_logs').insert({
       admin_id: admin.id,
-      action: 'update_stock',
+      action: 'adjust_stock',
       entity_type: validated.variant_id ? 'product_variant' : 'product',
       entity_id: validated.variant_id || validated.product_id || '',
       details: {
         previousQuantity,
         newQuantity: validated.new_quantity,
-        difference,
+        difference: validated.new_quantity - previousQuantity,
         reason: validated.reason,
       },
     });
+
+    if (actErr) {
+      console.warn('Activity log insert error for adjust_stock:', actErr.message);
+    }
 
     revalidatePath('/admin/stocks');
     revalidatePath('/admin/produits');

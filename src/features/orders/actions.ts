@@ -18,6 +18,16 @@ export async function getOrdersAdmin(): Promise<{
   isConfigured: boolean;
   error?: string;
 }> {
+  try {
+    await requireAdmin();
+  } catch (authError: unknown) {
+    return {
+      orders: [],
+      isConfigured: false,
+      error: authError instanceof Error ? authError.message : 'Non autorisé',
+    };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return { orders: [], isConfigured: false, error: 'Base de données non configurée' };

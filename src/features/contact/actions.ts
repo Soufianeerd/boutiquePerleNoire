@@ -8,13 +8,12 @@
 import { ContactInquirySchema } from '@/lib/validation/schemas';
 import { createClient } from '@/lib/supabase/server';
 import { sendInquiryNotificationEmail } from '@/lib/resend/client';
-import { initialContactRequests } from '@/lib/data/mock-data';
 import { ContactRequest } from '@/types/database';
 import { requireAdmin } from '@/lib/auth/admin';
 import { revalidatePath } from 'next/cache';
 
 /**
- * Public action: Customers submitting a bespoke inquiry or salon appointment request.
+ * Public action: Customers submitting a bespoke inquiry or product question.
  */
 export async function submitContactInquiry(payload: unknown): Promise<{
   success: boolean;
@@ -44,20 +43,6 @@ export async function submitContactInquiry(payload: unknown): Promise<{
           error: 'Une erreur est survenue lors de l’enregistrement de votre demande.',
         };
       }
-    } else {
-      // Local development fallback
-      const newRequest: Partial<ContactRequest> = {
-        id: `req-${Date.now()}`,
-        product_id: validated.product_id || null,
-        name: validated.name,
-        email: validated.email,
-        phone: validated.phone || null,
-        preferred_channel: validated.preferred_channel,
-        message: validated.message,
-        status: 'new',
-        created_at: new Date().toISOString(),
-      };
-      initialContactRequests.unshift(newRequest as ContactRequest);
     }
 
     // Send email notification to atelier concierge
@@ -139,6 +124,16 @@ export async function getContactRequestsAdmin(): Promise<{
   isConfigured: boolean;
   error?: string;
 }> {
+  try {
+    await requireAdmin();
+  } catch (authError: unknown) {
+    return {
+      requests: [],
+      isConfigured: false,
+      error: authError instanceof Error ? authError.message : 'Non autorisé',
+    };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return { requests: [], isConfigured: false, error: 'Base de données non configurée' };

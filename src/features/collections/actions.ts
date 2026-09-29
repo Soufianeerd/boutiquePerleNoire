@@ -23,6 +23,16 @@ export async function getCollectionsAdmin(): Promise<{
   isConfigured: boolean;
   error?: string;
 }> {
+  try {
+    await requireAdmin();
+  } catch (authError: unknown) {
+    return {
+      collections: [],
+      isConfigured: false,
+      error: authError instanceof Error ? authError.message : 'Non autorisé',
+    };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return { collections: [], isConfigured: false, error: 'Base de données non configurée' };

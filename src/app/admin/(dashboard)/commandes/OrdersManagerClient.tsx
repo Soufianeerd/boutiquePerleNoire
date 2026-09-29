@@ -22,11 +22,11 @@ interface OrdersManagerClientProps {
 }
 
 export function OrdersManagerClient({
-  orders: initialOrdersInput,
+  orders: initialList,
   currency,
 }: OrdersManagerClientProps) {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>(initialOrdersInput);
+  const [orders, setOrders] = useState<Order[]>(initialList);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 

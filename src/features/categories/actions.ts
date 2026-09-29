@@ -23,6 +23,16 @@ export async function getCategoriesAdmin(): Promise<{
   isConfigured: boolean;
   error?: string;
 }> {
+  try {
+    await requireAdmin();
+  } catch (authError: unknown) {
+    return {
+      categories: [],
+      isConfigured: false,
+      error: authError instanceof Error ? authError.message : 'Non autorisé',
+    };
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return { categories: [], isConfigured: false, error: 'Base de données non configurée' };

@@ -27,6 +27,7 @@ import {
 
 interface MediaWithUsage extends MediaItem {
   usage_count: number;
+  usage_details?: string;
 }
 
 interface MediasManagerClientProps {
@@ -228,8 +229,11 @@ export function MediasManagerClient({ initialMedia }: MediasManagerClientProps) 
                   unoptimized
                 />
                 {item.usage_count > 0 && (
-                  <span className="absolute top-2 left-2 text-[9px] uppercase tracking-wider px-2 py-0.5 bg-[#121212]/90 border border-[#3E3D3A] text-[#C5A880] font-medium">
-                    Utilisé par {item.usage_count} produit{item.usage_count > 1 ? 's' : ''}
+                  <span
+                    className="absolute top-2 left-2 text-[9px] uppercase tracking-wider px-2 py-0.5 bg-[#121212]/90 border border-[#3E3D3A] text-[#C5A880] font-medium"
+                    title={item.usage_details || undefined}
+                  >
+                    {item.usage_details || `Utilisé (${item.usage_count})`}
                   </span>
                 )}
               </div>

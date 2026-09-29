@@ -266,11 +266,21 @@ export interface MediaItem {
   id: string;
   filename: string;
   file_path: string;
+  storage_path?: string | null;
   file_size: number;
   mime_type: string;
   alt_text: string | null;
   bucket: string;
   created_at: string;
+}
+
+export interface WebhookEvent {
+  id: string;
+  provider: 'stripe' | 'paypal';
+  event_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  processed_at: string;
 }
 
 export interface ActivityLog {
