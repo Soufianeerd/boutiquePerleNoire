@@ -1,14 +1,32 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Product, Category, ProductStatus, ProductSellMode } from '@/types/database';
-import { createProductAction } from '@/features/products/actions';
-import { Badge } from '@/components/ui/Badge';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { Product, Category, ProductStatus } from '@/types/database';
+import {
+  deleteProductAction,
+  duplicateProductAction,
+  toggleProductStatusAction,
+} from '@/features/products/actions';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { EmptyState } from '@/components/admin/EmptyState';
 import { formatPrice } from '@/lib/utils';
-import { Plus, Filter, Gem, ShoppingBag, MessageSquare } from 'lucide-react';
+import {
+  Plus,
+  Filter,
+  Search,
+  Gem,
+  Edit,
+  Copy,
+  Trash2,
+  Eye,
+  EyeOff,
+  Boxes,
+  ExternalLink,
+} from 'lucide-react';
 
 interface ProductsManagerClientProps {
   initialProducts: Product[];
@@ -21,326 +39,327 @@ export function ProductsManagerClient({
   categories,
   currency,
 }: ProductsManagerClientProps) {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterSellMode, setFilterSellMode] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // New product form fields
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [basePrice, setBasePrice] = useState('3500');
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
-  const [sellMode, setSellMode] = useState<ProductSellMode>('inherit');
-  const [status, setStatus] = useState<ProductStatus>('published');
-  const [materialDetails, setMaterialDetails] = useState('Or blanc 750/1000 (18K)');
-  const [gemstoneDetails, setGemstoneDetails] = useState('Pierre précieuse & Finition artisanale');
-  const [description, setDescription] = useState('Création d’exception façonnée manuellement au sein de notre atelier parisien.');
-  const [sku, setSku] = useState('PN-NOUV-01');
-  const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Deletion state
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Duplication & Toggle loading ids
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const filteredProducts = products.filter((p) => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchSku = p.sku ? p.sku.toLowerCase().includes(q) : false;
+      if (!matchName && !matchSku) return false;
+    }
+    if (filterCategory !== 'all' && p.category_id !== filterCategory) return false;
     if (filterSellMode !== 'all' && p.sell_mode !== filterSellMode) return false;
     if (filterStatus !== 'all' && p.status !== filterStatus) return false;
     return true;
   });
 
-  const handleNameChange = (val: string) => {
-    setName(val);
-    setSlug(
-      val
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '')
-    );
-  };
-
-  const handleCreateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormLoading(true);
-    setFormError(null);
-
-    const res = await createProductAction({
-      name,
-      slug,
-      base_price: parseFloat(basePrice),
-      category_id: categoryId || undefined,
-      sell_mode: sellMode,
-      status,
-      material_details: materialDetails,
-      gemstone_details: gemstoneDetails,
-      description,
-      sku,
-      featured: false,
-    });
-
-    setFormLoading(false);
+  const handleDuplicate = async (p: Product) => {
+    setActionLoadingId(p.id);
+    const res = await duplicateProductAction(p.id);
+    setActionLoadingId(null);
     if (res.success && res.product) {
       setProducts([res.product, ...products]);
-      setIsModalOpen(false);
-      setName('');
-      setSlug('');
-    } else {
-      setFormError(res.error || 'Erreur lors de la création');
+      router.refresh();
+    }
+  };
+
+  const handleToggleStatus = async (p: Product) => {
+    const nextStatus: ProductStatus = p.status === 'published' ? 'draft' : 'published';
+    setActionLoadingId(p.id);
+    const res = await toggleProductStatusAction(p.id, nextStatus);
+    setActionLoadingId(null);
+    if (res.success) {
+      setProducts(
+        products.map((item) => (item.id === p.id ? { ...item, status: nextStatus } : item))
+      );
+      router.refresh();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!productToDelete) return;
+    setDeleteLoading(true);
+    const res = await deleteProductAction(productToDelete.id);
+    setDeleteLoading(false);
+    if (res.success) {
+      setProducts(products.filter((p) => p.id !== productToDelete.id));
+      setProductToDelete(null);
+      router.refresh();
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Action & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#181816] border border-[#282725] p-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-xs text-[#8C827A]">
+      {/* Top Action & Filters Bar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#181816] border border-[#282725] p-4">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#736B5E]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher par nom ou SKU..."
+            className="w-full bg-[#121212] border border-[#282725] pl-9 pr-3 py-2 text-xs text-[#FAF8F5] focus:outline-none focus:border-[#C5A880]"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs text-[#736B5E]">
             <Filter className="w-3.5 h-3.5" />
-            <span>Mode Produit :</span>
+            <span className="hidden sm:inline">Filtres :</span>
           </div>
+
           <select
-            value={filterSellMode}
-            onChange={(e) => setFilterSellMode(e.target.value)}
-            className="bg-[#121212] border border-[#3E3D3A] px-2.5 py-1.5 text-xs text-[#FAF8F5] focus:outline-none"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="bg-[#121212] border border-[#282725] px-2.5 py-1.5 text-xs text-[#FAF8F5] focus:outline-none focus:border-[#C5A880]"
           >
-            <option value="all">Tous les modes</option>
-            <option value="inherit">Hérité du mode global</option>
-            <option value="online">En ligne uniquement</option>
-            <option value="contact_only">Sur demande uniquement</option>
+            <option value="all">Toutes catégories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
 
-          <div className="flex items-center gap-2 text-xs text-[#8C827A] ml-2">
-            <span>Statut :</span>
-          </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-[#121212] border border-[#3E3D3A] px-2.5 py-1.5 text-xs text-[#FAF8F5] focus:outline-none"
+            className="bg-[#121212] border border-[#282725] px-2.5 py-1.5 text-xs text-[#FAF8F5] focus:outline-none focus:border-[#C5A880]"
           >
-            <option value="all">Tous les statuts</option>
-            <option value="published">Publié</option>
-            <option value="unique_piece">Pièce Unique</option>
-            <option value="made_to_order">Sur Commande</option>
-            <option value="coming_soon">Bientôt Disponible</option>
-            <option value="out_of_stock">Épuisé</option>
-            <option value="draft">Brouillon</option>
+            <option value="all">Tous statuts</option>
+            <option value="published">Publiés</option>
+            <option value="draft">Brouillons</option>
+            <option value="out_of_stock">En rupture</option>
+            <option value="unique_piece">Pièce unique</option>
+            <option value="made_to_order">Sur commande</option>
           </select>
-        </div>
 
-        <Button
-          type="button"
-          variant="champagne"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Créer une Pièce</span>
-        </Button>
+          <select
+            value={filterSellMode}
+            onChange={(e) => setFilterSellMode(e.target.value)}
+            className="bg-[#121212] border border-[#282725] px-2.5 py-1.5 text-xs text-[#FAF8F5] focus:outline-none focus:border-[#C5A880]"
+          >
+            <option value="all">Tous modes</option>
+            <option value="inherit">Hérité</option>
+            <option value="online">En ligne</option>
+            <option value="contact_only">Sur demande</option>
+          </select>
+
+          <Link href="/admin/produits/nouveau">
+            <Button variant="champagne" size="sm" className="flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nouveau Produit</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Products Table */}
-      <div className="bg-[#181816] border border-[#282725] overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-[#141414] text-[#8C827A] uppercase tracking-wider text-[10px] border-b border-[#282725]">
-            <tr>
-              <th className="py-3 px-4">Création Joaillière</th>
-              <th className="py-3 px-4">Réf. SKU</th>
-              <th className="py-3 px-4">Catégorie</th>
-              <th className="py-3 px-4">Prix de base</th>
-              <th className="py-3 px-4">Mode Produit</th>
-              <th className="py-3 px-4">Statut</th>
-              <th className="py-3 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#242422]">
-            {filteredProducts.map((p) => (
-              <tr key={p.id} className="hover:bg-[#1E1E1C] transition-colors">
-                <td className="py-3.5 px-4 font-medium text-[#FAF8F5]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-[#262624] border border-[#3E3D3A] flex items-center justify-center text-[#C5A880] shrink-0">
-                      <Gem className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <span className="block">{p.name}</span>
-                      <span className="text-[10px] text-[#736B5E]">{p.material_details || 'Atelier'}</span>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3.5 px-4 font-mono text-[#8C827A]">
-                  {p.sku || '—'}
-                </td>
-                <td className="py-3.5 px-4 text-[#A89E90]">
-                  {p.category?.name || 'Joaillerie'}
-                </td>
-                <td className="py-3.5 px-4 font-editorial text-sm text-[#FAF8F5]">
-                  {formatPrice(p.base_price, currency)}
-                </td>
-                <td className="py-3.5 px-4">
-                  {p.sell_mode === 'contact_only' ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 bg-[#2B2215] text-[#C5A880] border border-[#443520]">
-                      <MessageSquare className="w-3 h-3" /> Sur Demande
-                    </span>
-                  ) : p.sell_mode === 'online' ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 bg-[#18261C] text-[#6FCF97] border border-[#27442E]">
-                      <ShoppingBag className="w-3 h-3" /> En ligne
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 bg-[#222220] text-[#9E9589] border border-[#333330]">
-                      Hérité (Global)
-                    </span>
-                  )}
-                </td>
-                <td className="py-3.5 px-4">
-                  <Badge status={p.status} />
-                </td>
-                <td className="py-3.5 px-4 text-right">
-                  <a
-                    href={`/bijoux/${p.slug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-[#C5A880] hover:underline"
-                  >
-                    Voir fiche
-                  </a>
-                </td>
+      {filteredProducts.length === 0 ? (
+        <EmptyState
+          icon={Gem}
+          title={products.length === 0 ? 'Aucun produit enregistré' : 'Aucun résultat trouvé'}
+          description={
+            products.length === 0
+              ? 'Votre catalogue est vide. Ajoutez votre premier bijou pour commencer à gérer votre boutique.'
+              : 'Aucun produit ne correspond à vos critères de recherche ou de filtre actuels.'
+          }
+          actionLabel={products.length === 0 ? 'Créer un produit' : undefined}
+          actionHref={products.length === 0 ? '/admin/produits/nouveau' : undefined}
+        />
+      ) : (
+        <div className="bg-[#181816] border border-[#282725] overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[#141414] text-[#8C827A] uppercase text-[10px] tracking-wider border-b border-[#282725]">
+              <tr>
+                <th className="py-3 px-4">Visuel & Produit</th>
+                <th className="py-3 px-4">Catégorie</th>
+                <th className="py-3 px-4">Prix</th>
+                <th className="py-3 px-4">Variantes</th>
+                <th className="py-3 px-4">Mode Vente</th>
+                <th className="py-3 px-4">Statut</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-[#242422]">
+              {filteredProducts.map((p) => {
+                const primaryImage =
+                  p.images?.find((img) => img.is_primary)?.url || p.images?.[0]?.url;
+                const variantsCount = p.variants?.length || 0;
+                const isLoading = actionLoadingId === p.id;
 
-      {/* Creation Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Ajouter une Pièce Joaillière"
-        subtitle="Catalogue de l’Atelier"
-        maxWidth="lg"
-      >
-        <form onSubmit={handleCreateProduct} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nom de la création *"
-              required
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Ex: Solitaire Nuit Éternelle"
-            />
-            <Input
-              label="Slug URL *"
-              required
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="solitaire-nuit-eternelle"
-            />
-          </div>
+                return (
+                  <tr key={p.id} className="hover:bg-[#1C1C1A] transition-colors">
+                    {/* Visual & Name */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-12 h-12 bg-[#121212] border border-[#282725] shrink-0 overflow-hidden flex items-center justify-center">
+                          {primaryImage ? (
+                            <Image
+                              src={primaryImage}
+                              alt={p.name}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <Gem className="w-4 h-4 text-[#736B5E]" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/admin/produits/${p.id}`}
+                            className="font-medium text-[#FAF8F5] hover:text-[#C5A880] truncate block"
+                          >
+                            {p.name}
+                          </Link>
+                          <span className="text-[10px] text-[#736B5E] font-mono block">
+                            SKU: {p.sku || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input
-              label="Prix de base (€) *"
-              type="number"
-              required
-              value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
-            />
-            <Input
-              label="Référence SKU"
-              value={sku}
-              onChange={(e) => setSku(e.target.value)}
-            />
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-                Catégorie
-              </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-[#FAF8F5] border border-[#DDD5C7] px-3 py-2.5 text-xs text-[#141414] focus:border-[#C5A880] focus:outline-none"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+                    {/* Category */}
+                    <td className="py-3.5 px-4 text-[#A89E90]">
+                      {p.category?.name || '—'}
+                    </td>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-                Mode de Vente du Produit (sell_mode)
-              </label>
-              <select
-                value={sellMode}
-                onChange={(e) => setSellMode(e.target.value as ProductSellMode)}
-                className="w-full bg-[#FAF8F5] border border-[#DDD5C7] px-3 py-2.5 text-xs text-[#141414] focus:border-[#C5A880] focus:outline-none"
-              >
-                <option value="inherit">Hériter du mode global boutique</option>
-                <option value="contact_only">Toujours sur demande (Contact Only)</option>
-                <option value="online">En ligne si e-commerce actif</option>
-              </select>
-            </div>
+                    {/* Price */}
+                    <td className="py-3.5 px-4 font-mono font-medium text-[#FAF8F5]">
+                      {formatPrice(p.base_price, currency)}
+                    </td>
 
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-                Statut
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as ProductStatus)}
-                className="w-full bg-[#FAF8F5] border border-[#DDD5C7] px-3 py-2.5 text-xs text-[#141414] focus:border-[#C5A880] focus:outline-none"
-              >
-                <option value="published">Publié (Disponible)</option>
-                <option value="unique_piece">Pièce Unique de Haute Joaillerie</option>
-                <option value="made_to_order">Sur Commande</option>
-                <option value="coming_soon">Bientôt Disponible</option>
-                <option value="out_of_stock">Épuisé</option>
-                <option value="draft">Brouillon</option>
-              </select>
-            </div>
-          </div>
+                    {/* Variants */}
+                    <td className="py-3.5 px-4">
+                      {variantsCount > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-[#C5A880]">
+                          <Boxes className="w-3.5 h-3.5" />
+                          <span>{variantsCount} taille{variantsCount > 1 ? 's' : ''}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-[#736B5E]">Stock: {p.stock_quantity ?? 0}</span>
+                      )}
+                    </td>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Détails du métal précieux"
-              value={materialDetails}
-              onChange={(e) => setMaterialDetails(e.target.value)}
-              placeholder="Ex: Or blanc 750/1000 (18K) - 6.5g"
-            />
-            <Input
-              label="Gemmes & Nacre"
-              value={gemstoneDetails}
-              onChange={(e) => setGemstoneDetails(e.target.value)}
-              placeholder="Ex: Diamants taille brillant & Pierres fines"
-            />
-          </div>
+                    {/* Sell Mode */}
+                    <td className="py-3.5 px-4">
+                      <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-[#222220] text-[#9E9589] border border-[#2D2D2A]">
+                        {p.sell_mode}
+                      </span>
+                    </td>
 
-          <div className="space-y-1.5">
-            <label className="block text-[11px] uppercase tracking-wider text-[#554E45] font-medium">
-              Description éditoriale *
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-[#FAF8F5] border border-[#DDD5C7] p-3 text-xs text-[#141414] focus:border-[#C5A880] focus:outline-none"
-            />
-          </div>
+                    {/* Status */}
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`text-[10px] uppercase tracking-wider px-2 py-0.5 border ${
+                          p.status === 'published'
+                            ? 'text-[#6FCF97] border-[#22442C] bg-[#16271C]'
+                            : p.status === 'draft'
+                            ? 'text-[#8C827A] border-[#3E3D3A] bg-[#222220]'
+                            : p.status === 'out_of_stock'
+                            ? 'text-red-400 border-red-900 bg-red-950/40'
+                            : 'text-[#C5A880] border-[#443E33] bg-[#22201C]'
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </td>
 
-          {formError && <p className="text-xs text-red-600">{formError}</p>}
+                    {/* Actions */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Storefront view link */}
+                        <Link
+                          href={`/bijoux/${p.slug}`}
+                          target="_blank"
+                          className="p-1.5 text-[#736B5E] hover:text-[#FAF8F5] transition-colors"
+                          title="Voir sur le site"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
 
-          <div className="pt-2 flex justify-end gap-3">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button type="submit" variant="primary" size="sm" disabled={formLoading}>
-              {formLoading ? 'Création...' : 'Enregistrer la Pièce'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+                        {/* Quick Toggle Status */}
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => handleToggleStatus(p)}
+                          className="p-1.5 text-[#8C827A] hover:text-[#C5A880] transition-colors"
+                          title={p.status === 'published' ? 'Passer en brouillon' : 'Publier'}
+                        >
+                          {p.status === 'published' ? (
+                            <EyeOff className="w-3.5 h-3.5" />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+
+                        {/* Duplicate */}
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => handleDuplicate(p)}
+                          className="p-1.5 text-[#8C827A] hover:text-[#FAF8F5] transition-colors"
+                          title="Dupliquer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Edit */}
+                        <Link
+                          href={`/admin/produits/${p.id}`}
+                          className="p-1.5 text-[#C5A880] hover:text-[#FAF8F5] transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Link>
+
+                        {/* Delete */}
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => setProductToDelete(p)}
+                          className="p-1.5 text-red-400 hover:text-red-300 transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Confirm Deletion Modal */}
+      <ConfirmDialog
+        isOpen={Boolean(productToDelete)}
+        title="Supprimer définitivement ce produit ?"
+        message={`Êtes-vous sûr de vouloir supprimer « ${productToDelete?.name} » ? Cette action est irréversible.`}
+        confirmLabel="Supprimer"
+        loading={deleteLoading}
+        onConfirm={handleDelete}
+        onCancel={() => setProductToDelete(null)}
+      />
     </div>
   );
 }

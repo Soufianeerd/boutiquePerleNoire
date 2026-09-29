@@ -54,6 +54,8 @@ export interface Category {
   hero_url: string | null;
   position: number;
   active: boolean;
+  meta_title?: string | null;
+  meta_description?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +69,8 @@ export interface Collection {
   hero_url: string | null;
   position: number;
   active: boolean;
+  meta_title?: string | null;
+  meta_description?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -112,6 +116,9 @@ export interface Product {
   sell_mode: ProductSellMode;
   material_details: string | null;
   gemstone_details: string | null;
+  stock_quantity?: number;
+  meta_title?: string | null;
+  meta_description?: string | null;
   created_at: string;
   updated_at: string;
 
@@ -127,10 +134,15 @@ export interface InventoryMovement {
   product_id: string | null;
   variant_id: string | null;
   change_amount: number;
-  reason: 'restock' | 'sale' | 'adjustment' | 'return' | 'initial';
+  previous_quantity?: number | null;
+  new_quantity?: number | null;
+  reason: 'restock' | 'sale' | 'adjustment' | 'return' | 'initial' | 'manual_adjustment';
   reference_id: string | null;
   created_by: string | null;
   created_at: string;
+  product?: Product | null;
+  variant?: ProductVariant | null;
+  admin?: AdminUser | null;
 }
 
 export interface Customer {

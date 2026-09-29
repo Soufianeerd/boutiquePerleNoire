@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // PERLE NOIRE - PRODUCTS & CATALOG SERVICE
-// Server-side retrieval and administration of high jewelry catalog (Hardened)
+// Server-side retrieval and administration of jewelry catalog (Strict Admin)
 // ==============================================================================
 
 import { revalidatePath } from 'next/cache';
@@ -197,39 +197,111 @@ export async function getHomepageSections(): Promise<HomepageSection[]> {
   }
 }
 
+// ==============================================================================
+// STRICT ADMIN ACTIONS (REAL SUPABASE PERSISTENCE ONLY - NO MOCKS)
+// ==============================================================================
+
 /**
- * Admin mutation: creates a new jewelry piece.
- * STRICT: Requires verified active admin and real PostgreSQL database persistence.
+ * Admin: Fetch all products with full relations. Returns explicit DB configuration status.
+ */
+export async function getProductsAdmin(): Promise<{
+  products: Product[];
+  isConfigured: boolean;
+  error?: string;
+}> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return {
+      products: [],
+      isConfigured: false,
+      error: 'Base de données non configurée',
+    };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, category:categories(*), collection:collections(*), variants:product_variants(*), images:product_images(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { products: [], isConfigured: true, error: error.message };
+    }
+
+    return { products: (data as Product[]) || [], isConfigured: true };
+  } catch (err: unknown) {
+    return {
+      products: [],
+      isConfigured: true,
+      error: err instanceof Error ? err.message : 'Erreur lors de la récupération des produits',
+    };
+  }
+}
+
+/**
+ * Admin: Fetch single product by UUID with variants, images, category, collection.
+ */
+export async function getProductByIdAdmin(id: string): Promise<{
+  product: Product | null;
+  isConfigured: boolean;
+  error?: string;
+}> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { product: null, isConfigured: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, category:categories(*), collection:collections(*), variants:product_variants(*), images:product_images(*)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      return { product: null, isConfigured: true, error: error.message };
+    }
+
+    return { product: (data as Product) || null, isConfigured: true };
+  } catch (err: unknown) {
+    return {
+      product: null,
+      isConfigured: true,
+      error: err instanceof Error ? err.message : 'Erreur lors de la récupération du produit',
+    };
+  }
+}
+
+/**
+ * Admin: Create a new product with optional variants and images.
  */
 export async function createProductAction(payload: unknown): Promise<{
   success: boolean;
   product?: Product;
   error?: string;
 }> {
-  // 1. Mandatory server authorization check
   let admin;
   try {
     admin = await requireAdmin();
   } catch (authError: unknown) {
-    const msg = authError instanceof Error ? authError.message : 'Non autorisé';
-    return { success: false, error: msg };
+    return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
   }
 
-  // 2. Reject if Supabase database is unconfigured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return {
       success: false,
-      error: 'Supabase n’est pas configuré. Impossible d’enregistrer une création sans base de données.',
+      error: 'Base de données non configurée. Impossible d’enregistrer sans Supabase.',
     };
   }
 
   try {
-    // 3. Strict schema validation
     const validated = ProductSchema.parse(payload);
     const supabase = await createClient();
 
-    // 4. Insert into PostgreSQL - let database generate canonical UUID
+    // 1. Insert product record
     const { data: insertedProduct, error: insertError } = await supabase
       .from('products')
       .insert({
@@ -247,31 +319,453 @@ export async function createProductAction(payload: unknown): Promise<{
         sell_mode: validated.sell_mode,
         material_details: validated.material_details || null,
         gemstone_details: validated.gemstone_details || null,
+        stock_quantity: validated.stock_quantity || 0,
+        meta_title: validated.meta_title || null,
+        meta_description: validated.meta_description || null,
       })
-      .select('*, category:categories(*), collection:collections(*), variants:product_variants(*), images:product_images(*)')
+      .select('id')
       .single();
 
     if (insertError || !insertedProduct) {
       return {
         success: false,
-        error: insertError?.message || 'Erreur lors de l’insertion du bijou en base de données.',
+        error: insertError?.message || 'Erreur lors de l’insertion du produit.',
       };
     }
 
-    // 5. Audit log
+    const productId = insertedProduct.id;
+
+    // 2. Insert variants if provided
+    if (validated.variants && validated.variants.length > 0) {
+      const variantsToInsert = validated.variants.map((v) => ({
+        product_id: productId,
+        title: v.title,
+        sku: v.sku || null,
+        price: v.price,
+        size: v.size || null,
+        material: v.material || null,
+        color: v.color || null,
+        stock_quantity: v.stock_quantity || 0,
+        active: v.active ?? true,
+      }));
+
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .insert(variantsToInsert);
+
+      if (variantError) {
+        console.error('Error inserting variants:', variantError.message);
+      }
+    }
+
+    // 3. Insert images if provided
+    if (validated.images && validated.images.length > 0) {
+      const imagesToInsert = validated.images.map((img, idx) => ({
+        product_id: productId,
+        url: img.url,
+        alt: img.alt || validated.name,
+        position: img.position ?? idx,
+        is_primary: img.is_primary ?? idx === 0,
+      }));
+
+      const { error: imgError } = await supabase
+        .from('product_images')
+        .insert(imagesToInsert);
+
+      if (imgError) {
+        console.error('Error inserting images:', imgError.message);
+      }
+    }
+
+    // 4. Initial inventory movement if product has direct stock
+    if (validated.stock_quantity && validated.stock_quantity > 0) {
+      await supabase.from('inventory_movements').insert({
+        product_id: productId,
+        change_amount: validated.stock_quantity,
+        previous_quantity: 0,
+        new_quantity: validated.stock_quantity,
+        reason: 'initial',
+        created_by: admin.id,
+      });
+    }
+
+    // 5. Activity log
     await supabase.from('activity_logs').insert({
       admin_id: admin.id,
       action: 'create_product',
       entity_type: 'product',
-      entity_id: insertedProduct.id,
-      details: { name: validated.name, sku: validated.sku },
+      entity_id: productId,
+      details: { name: validated.name, sku: validated.sku, price: validated.base_price },
     });
 
     revalidatePath('/bijoux');
     revalidatePath('/admin/produits');
-    return { success: true, product: insertedProduct as Product };
+    revalidatePath('/admin/stocks');
+
+    const fullProduct = await getProductByIdAdmin(productId);
+    return { success: true, product: fullProduct.product || undefined };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erreur lors de la création du bijou';
-    return { success: false, error: msg };
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur lors de la création du produit' };
+  }
+}
+
+/**
+ * Admin: Update an existing product, including syncing its variants and images.
+ */
+export async function updateProductAction(
+  id: string,
+  payload: unknown
+): Promise<{ success: boolean; product?: Product; error?: string }> {
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch (authError: unknown) {
+    return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { success: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const validated = ProductSchema.parse(payload);
+    const supabase = await createClient();
+
+    // 1. Update product base fields
+    const { error: updateError } = await supabase
+      .from('products')
+      .update({
+        name: validated.name,
+        slug: validated.slug,
+        description: validated.description,
+        short_description: validated.short_description || null,
+        sku: validated.sku || null,
+        base_price: validated.base_price,
+        compare_at_price: validated.compare_at_price || null,
+        category_id: validated.category_id || null,
+        collection_id: validated.collection_id || null,
+        status: validated.status as ProductStatus,
+        featured: validated.featured,
+        sell_mode: validated.sell_mode,
+        material_details: validated.material_details || null,
+        gemstone_details: validated.gemstone_details || null,
+        stock_quantity: validated.stock_quantity ?? 0,
+        meta_title: validated.meta_title || null,
+        meta_description: validated.meta_description || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    // 2. Synchronize variants: delete old ones not in payload, upsert current ones
+    if (validated.variants !== undefined) {
+      // Fetch existing variants
+      const { data: existingVariants } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', id);
+
+      const existingIds = (existingVariants || []).map((v) => v.id);
+      const incomingIds = validated.variants.map((v) => v.id).filter(Boolean) as string[];
+
+      // Delete removed variants
+      const idsToDelete = existingIds.filter((idVal) => !incomingIds.includes(idVal));
+      if (idsToDelete.length > 0) {
+        await supabase.from('product_variants').delete().in('id', idsToDelete);
+      }
+
+      // Upsert / Insert incoming variants
+      for (const v of validated.variants) {
+        if (v.id && existingIds.includes(v.id)) {
+          await supabase
+            .from('product_variants')
+            .update({
+              title: v.title,
+              sku: v.sku || null,
+              price: v.price,
+              size: v.size || null,
+              material: v.material || null,
+              color: v.color || null,
+              stock_quantity: v.stock_quantity || 0,
+              active: v.active ?? true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', v.id);
+        } else {
+          await supabase.from('product_variants').insert({
+            product_id: id,
+            title: v.title,
+            sku: v.sku || null,
+            price: v.price,
+            size: v.size || null,
+            material: v.material || null,
+            color: v.color || null,
+            stock_quantity: v.stock_quantity || 0,
+            active: v.active ?? true,
+          });
+        }
+      }
+    }
+
+    // 3. Synchronize images: replace or sync
+    if (validated.images !== undefined) {
+      await supabase.from('product_images').delete().eq('product_id', id);
+
+      if (validated.images.length > 0) {
+        const imagesToInsert = validated.images.map((img, idx) => ({
+          product_id: id,
+          url: img.url,
+          alt: img.alt || validated.name,
+          position: img.position ?? idx,
+          is_primary: img.is_primary ?? idx === 0,
+        }));
+        await supabase.from('product_images').insert(imagesToInsert);
+      }
+    }
+
+    // 4. Activity log
+    await supabase.from('activity_logs').insert({
+      admin_id: admin.id,
+      action: 'update_product',
+      entity_type: 'product',
+      entity_id: id,
+      details: { name: validated.name },
+    });
+
+    revalidatePath('/bijoux');
+    revalidatePath(`/bijoux/${validated.slug}`);
+    revalidatePath('/admin/produits');
+    revalidatePath(`/admin/produits/${id}`);
+    revalidatePath('/admin/stocks');
+
+    const updated = await getProductByIdAdmin(id);
+    return { success: true, product: updated.product || undefined };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur de mise à jour' };
+  }
+}
+
+/**
+ * Admin: Delete a product with its images and variants, cleaned up from DB & Storage.
+ */
+export async function deleteProductAction(id: string): Promise<{ success: boolean; error?: string }> {
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch (authError: unknown) {
+    return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { success: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    // 1. Get product details for logs
+    const { data: product } = await supabase
+      .from('products')
+      .select('name, slug')
+      .eq('id', id)
+      .single();
+
+    // 2. Cascade delete will remove product_images & product_variants in DB
+    const { error: deleteError } = await supabase.from('products').delete().eq('id', id);
+
+    if (deleteError) {
+      return { success: false, error: deleteError.message };
+    }
+
+    // 3. Activity log
+    await supabase.from('activity_logs').insert({
+      admin_id: admin.id,
+      action: 'delete_product',
+      entity_type: 'product',
+      entity_id: id,
+      details: { name: product?.name, slug: product?.slug },
+    });
+
+    revalidatePath('/bijoux');
+    revalidatePath('/admin/produits');
+    revalidatePath('/admin/stocks');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur lors de la suppression' };
+  }
+}
+
+/**
+ * Admin: Duplicate an existing product with its variants and image references.
+ */
+export async function duplicateProductAction(id: string): Promise<{
+  success: boolean;
+  product?: Product;
+  error?: string;
+}> {
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch (authError: unknown) {
+    return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { success: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const supabase = await createClient();
+
+    const { data: original, error: fetchError } = await supabase
+      .from('products')
+      .select('*, variants:product_variants(*), images:product_images(*)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !original) {
+      return { success: false, error: 'Produit source introuvable' };
+    }
+
+    const newSlug = `${original.slug}-copie-${Date.now().toString().slice(-4)}`;
+    const newSku = original.sku ? `${original.sku}-CPY` : null;
+
+    // Insert cloned product
+    const { data: clonedProduct, error: insertError } = await supabase
+      .from('products')
+      .insert({
+        name: `${original.name} (Copie)`,
+        slug: newSlug,
+        description: original.description,
+        short_description: original.short_description,
+        sku: newSku,
+        base_price: original.base_price,
+        compare_at_price: original.compare_at_price,
+        category_id: original.category_id,
+        collection_id: original.collection_id,
+        status: 'draft', // always duplicate as draft for safety
+        featured: false,
+        sell_mode: original.sell_mode,
+        material_details: original.material_details,
+        gemstone_details: original.gemstone_details,
+        stock_quantity: original.stock_quantity || 0,
+        meta_title: original.meta_title,
+        meta_description: original.meta_description,
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !clonedProduct) {
+      return { success: false, error: insertError?.message || 'Erreur lors de la duplication' };
+    }
+
+    const clonedId = clonedProduct.id;
+
+    // Clone variants
+    if (original.variants && original.variants.length > 0) {
+      const clonedVariants = (original.variants as {
+        title: string;
+        sku?: string | null;
+        price: number;
+        size?: string | null;
+        material?: string | null;
+        color?: string | null;
+        stock_quantity: number;
+        active: boolean;
+      }[]).map((v) => ({
+        product_id: clonedId,
+        title: v.title,
+        sku: v.sku ? `${v.sku}-CPY` : null,
+        price: v.price,
+        size: v.size,
+        material: v.material,
+        color: v.color,
+        stock_quantity: v.stock_quantity,
+        active: v.active,
+      }));
+      await supabase.from('product_variants').insert(clonedVariants);
+    }
+
+    // Clone image links
+    if (original.images && original.images.length > 0) {
+      const clonedImages = (original.images as {
+        url: string;
+        alt: string;
+        position: number;
+        is_primary: boolean;
+      }[]).map((img) => ({
+        product_id: clonedId,
+        url: img.url,
+        alt: `${img.alt} (Copie)`,
+        position: img.position,
+        is_primary: img.is_primary,
+      }));
+      await supabase.from('product_images').insert(clonedImages);
+    }
+
+    // Activity log
+    await supabase.from('activity_logs').insert({
+      admin_id: admin.id,
+      action: 'duplicate_product',
+      entity_type: 'product',
+      entity_id: clonedId,
+      details: { original_id: id, name: original.name },
+    });
+
+    revalidatePath('/admin/produits');
+    const fullCloned = await getProductByIdAdmin(clonedId);
+    return { success: true, product: fullCloned.product || undefined };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur lors de la duplication' };
+  }
+}
+
+/**
+ * Admin: Quickly toggle a product status (e.g. published, draft, out_of_stock).
+ */
+export async function toggleProductStatusAction(
+  id: string,
+  newStatus: ProductStatus
+): Promise<{ success: boolean; error?: string }> {
+  let admin;
+  try {
+    admin = await requireAdmin();
+  } catch (authError: unknown) {
+    return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { success: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('products')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+
+    await supabase.from('activity_logs').insert({
+      admin_id: admin.id,
+      action: 'update_product_status',
+      entity_type: 'product',
+      entity_id: id,
+      details: { status: newStatus },
+    });
+
+    revalidatePath('/bijoux');
+    revalidatePath('/admin/produits');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur' };
   }
 }

@@ -123,9 +123,74 @@ export async function updateContactStatusAction(
     });
 
     revalidatePath('/admin/clients');
+    revalidatePath('/admin');
     return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Erreur lors de la mise à jour';
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Admin: Fetch real contact requests from database with joined product details.
+ */
+export async function getContactRequestsAdmin(): Promise<{
+  requests: ContactRequest[];
+  isConfigured: boolean;
+  error?: string;
+}> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+    return { requests: [], isConfigured: false, error: 'Base de données non configurée' };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('contact_requests')
+      .select('*, product:products(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { requests: [], isConfigured: true, error: error.message };
+    }
+
+    return { requests: (data as ContactRequest[]) || [], isConfigured: true };
+  } catch (err: unknown) {
+    return {
+      requests: [],
+      isConfigured: true,
+      error: err instanceof Error ? err.message : 'Erreur lors de la récupération des demandes',
+    };
+  }
+}
+
+/**
+ * Admin: Delete a contact request.
+ */
+export async function deleteContactRequestAction(
+  requestId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const admin = await requireAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase.from('contact_requests').delete().eq('id', requestId);
+    if (error) return { success: false, error: error.message };
+
+    await supabase.from('activity_logs').insert({
+      admin_id: admin.id,
+      action: 'delete_contact_request',
+      entity_type: 'contact_request',
+      entity_id: requestId,
+      details: {},
+    });
+
+    revalidatePath('/admin/clients');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Erreur' };
+  }
+}
+

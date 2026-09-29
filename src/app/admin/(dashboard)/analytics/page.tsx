@@ -1,100 +1,157 @@
 import { Metadata } from 'next';
-import { BarChart3, TrendingUp, Users, ShoppingBag } from 'lucide-react';
+import { getAdminDashboardStats } from '@/features/admin/actions';
+import { getContactRequestsAdmin } from '@/features/contact/actions';
+import { DatabaseNotConfiguredBanner } from '@/components/admin/DatabaseNotConfiguredBanner';
+import { formatPrice } from '@/lib/utils';
+import { BarChart3, Users, ShoppingBag, Gem } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Statistiques & Performance Joaillière | Perle Noire Admin',
+  title: 'Statistiques & Performance | Perle Noire Admin',
 };
 
-export default function AdminAnalyticsPage() {
+export default async function AdminAnalyticsPage() {
+  const [stats, requestsData] = await Promise.all([
+    getAdminDashboardStats(),
+    getContactRequestsAdmin(),
+  ]);
+
+  const requests = requestsData.requests || [];
+  const totalRequests = requests.length;
+
+  const whatsappCount = requests.filter((r) => r.preferred_channel === 'whatsapp').length;
+  const formCount = requests.filter((r) => r.preferred_channel === 'contact_form').length;
+  const phoneCount = requests.filter((r) => r.preferred_channel === 'phone').length;
+  const emailCount = requests.filter((r) => r.preferred_channel === 'email').length;
+
+  const whatsappPct = totalRequests > 0 ? Math.round((whatsappCount / totalRequests) * 100) : 0;
+  const formPct = totalRequests > 0 ? Math.round((formCount / totalRequests) * 100) : 0;
+  const phonePct = totalRequests > 0 ? Math.round((phoneCount / totalRequests) * 100) : 0;
+  const emailPct = totalRequests > 0 ? Math.round((emailCount / totalRequests) * 100) : 0;
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {!stats.isConfigured && (
+        <DatabaseNotConfiguredBanner message="Supabase n’est pas configuré. Les statistiques affichées proviennent exclusivement de vos données réelles." />
+      )}
+
       <div>
         <span className="text-[10px] uppercase tracking-widest text-[#C5A880] font-medium block mb-1">
-          Performances & Mesures d’Audience
+          Performances & Mesures Réelles
         </span>
         <h1 className="font-editorial text-3xl text-[#FAF8F5]">
-          Statistiques de Fréquentation & Intérêt Client
+          Statistiques de l’Activité
         </h1>
         <p className="text-xs text-[#9E9589] mt-1">
-          Analysez le taux de consultation en vitrine, le volume de prises de rendez-vous et les conversions.
+          Mesures basées sur vos produits enregistrés, vos commandes en ligne réelles et vos demandes clients.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 bg-[#181816] border border-[#282725] space-y-2">
           <div className="flex items-center justify-between text-[#8C827A] text-[10px] uppercase tracking-widest">
-            <span>Visites Vitrine</span>
-            <Users className="w-4 h-4 text-[#C5A880]" />
+            <span>Produits au Catalogue</span>
+            <Gem className="w-4 h-4 text-[#C5A880]" />
           </div>
-          <span className="font-editorial text-3xl text-[#FAF8F5] block">1 840</span>
-          <span className="text-[10px] text-[#6FCF97] flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> +14% ce mois
+          <span className="font-editorial text-3xl text-[#FAF8F5] block">
+            {stats.totalProducts}
+          </span>
+          <span className="text-[10px] text-[#A08154]">
+            {stats.publishedProducts} en ligne
           </span>
         </div>
 
         <div className="p-5 bg-[#181816] border border-[#282725] space-y-2">
           <div className="flex items-center justify-between text-[#8C827A] text-[10px] uppercase tracking-widest">
-            <span>Taux de Contact</span>
-            <BarChart3 className="w-4 h-4 text-[#C5A880]" />
+            <span>Demandes Clients</span>
+            <Users className="w-4 h-4 text-[#C5A880]" />
           </div>
-          <span className="font-editorial text-3xl text-[#FAF8F5] block">4.8 %</span>
-          <span className="text-[10px] text-[#A08154]">Haute Joaillerie</span>
+          <span className="font-editorial text-3xl text-[#FAF8F5] block">
+            {totalRequests}
+          </span>
+          <span className="text-[10px] text-[#C5A880]">
+            {stats.pendingRequestsCount} en attente de réponse
+          </span>
         </div>
 
         <div className="p-5 bg-[#181816] border border-[#282725] space-y-2">
           <div className="flex items-center justify-between text-[#8C827A] text-[10px] uppercase tracking-widest">
-            <span>Canal Préféré</span>
-            <span className="text-[10px] text-[#C5A880] font-medium">WhatsApp</span>
-          </div>
-          <span className="font-editorial text-3xl text-[#FAF8F5] block">62 %</span>
-          <span className="text-[10px] text-[#8C827A]">Prise de contact directe</span>
-        </div>
-
-        <div className="p-5 bg-[#181816] border border-[#282725] space-y-2">
-          <div className="flex items-center justify-between text-[#8C827A] text-[10px] uppercase tracking-widest">
-            <span>Panier Moyen</span>
+            <span>Commandes Payées</span>
             <ShoppingBag className="w-4 h-4 text-[#C5A880]" />
           </div>
-          <span className="font-editorial text-3xl text-[#FAF8F5] block">4 200 €</span>
-          <span className="text-[10px] text-[#6FCF97]">Acquisitions privées</span>
+          <span className="font-editorial text-3xl text-[#FAF8F5] block">
+            {stats.totalOrdersCount}
+          </span>
+          <span className="text-[10px] text-[#6FCF97]">
+            Ventes e-commerce
+          </span>
+        </div>
+
+        <div className="p-5 bg-[#181816] border border-[#282725] space-y-2">
+          <div className="flex items-center justify-between text-[#8C827A] text-[10px] uppercase tracking-widest">
+            <span>Chiffre d’Affaires Réel</span>
+            <BarChart3 className="w-4 h-4 text-[#C5A880]" />
+          </div>
+          <span className="font-editorial text-3xl text-[#FAF8F5] block">
+            {formatPrice(stats.totalRevenue, stats.settings.currency)}
+          </span>
+          <span className="text-[10px] text-[#736B5E]">
+            Règlements validés
+          </span>
         </div>
       </div>
 
+      {/* Real Channel Distribution */}
       <div className="p-6 bg-[#181816] border border-[#282725] space-y-4">
         <h3 className="font-editorial text-xl text-[#FAF8F5]">
-          Répartition des Demandes par Canal Joaillier
+          Répartition Réelle des Demandes par Canal
         </h3>
-        <div className="space-y-3 pt-2">
-          <div>
-            <div className="flex justify-between text-xs text-[#9E9589] mb-1">
-              <span>WhatsApp Concierge Direct</span>
-              <span className="font-mono text-[#FAF8F5]">62%</span>
+        {totalRequests === 0 ? (
+          <p className="text-xs text-[#736B5E] py-4">
+            Aucune demande client enregistrée pour l’instant. La répartition par canal apparaîtra dès que des messages parviendront à la boutique.
+          </p>
+        ) : (
+          <div className="space-y-4 pt-2">
+            <div>
+              <div className="flex justify-between text-xs text-[#9E9589] mb-1">
+                <span>WhatsApp ({whatsappCount} demande{whatsappCount > 1 ? 's' : ''})</span>
+                <span className="font-mono text-[#FAF8F5]">{whatsappPct}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#242422]">
+                <div className="h-full bg-[#25D366]" style={{ width: `${whatsappPct}%` }} />
+              </div>
             </div>
-            <div className="w-full h-2 bg-[#242422]">
-              <div className="h-full bg-[#C5A880]" style={{ width: '62%' }} />
-            </div>
-          </div>
 
-          <div>
-            <div className="flex justify-between text-xs text-[#9E9589] mb-1">
-              <span>Demandes de rendez-vous (Formulaire)</span>
-              <span className="font-mono text-[#FAF8F5]">26%</span>
+            <div>
+              <div className="flex justify-between text-xs text-[#9E9589] mb-1">
+                <span>Formulaire de contact ({formCount} demande{formCount > 1 ? 's' : ''})</span>
+                <span className="font-mono text-[#FAF8F5]">{formPct}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#242422]">
+                <div className="h-full bg-[#C5A880]" style={{ width: `${formPct}%` }} />
+              </div>
             </div>
-            <div className="w-full h-2 bg-[#242422]">
-              <div className="h-full bg-[#A08154]" style={{ width: '26%' }} />
-            </div>
-          </div>
 
-          <div>
-            <div className="flex justify-between text-xs text-[#9E9589] mb-1">
-              <span>Ligne Téléphonique Directe</span>
-              <span className="font-mono text-[#FAF8F5]">12%</span>
+            <div>
+              <div className="flex justify-between text-xs text-[#9E9589] mb-1">
+                <span>Téléphone ({phoneCount} demande{phoneCount > 1 ? 's' : ''})</span>
+                <span className="font-mono text-[#FAF8F5]">{phonePct}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#242422]">
+                <div className="h-full bg-[#A08154]" style={{ width: `${phonePct}%` }} />
+              </div>
             </div>
-            <div className="w-full h-2 bg-[#242422]">
-              <div className="h-full bg-[#736B5E]" style={{ width: '12%' }} />
+
+            <div>
+              <div className="flex justify-between text-xs text-[#9E9589] mb-1">
+                <span>E-mail direct ({emailCount} demande{emailCount > 1 ? 's' : ''})</span>
+                <span className="font-mono text-[#FAF8F5]">{emailPct}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#242422]">
+                <div className="h-full bg-[#736B5E]" style={{ width: `${emailPct}%` }} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

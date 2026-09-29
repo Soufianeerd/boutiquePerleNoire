@@ -30,7 +30,28 @@ export const StoreSettingsSchema = z.object({
   maintenance_mode: z.boolean(),
 });
 
+export const ProductVariantSchema = z.object({
+  id: z.string().uuid().optional(),
+  title: z.string().min(1, 'Le titre de la variante est requis').max(255),
+  sku: z.string().max(100).nullable().optional(),
+  price: z.number().min(0, 'Le prix de la variante doit être positif'),
+  size: z.string().max(50).nullable().optional(),
+  material: z.string().max(100).nullable().optional(),
+  color: z.string().max(100).nullable().optional(),
+  stock_quantity: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+});
+
+export const ProductImageSchema = z.object({
+  id: z.string().uuid().optional(),
+  url: z.string().url('URL image invalide'),
+  alt: z.string().max(255).default(''),
+  position: z.number().int().min(0).default(0),
+  is_primary: z.boolean().default(false),
+});
+
 export const ProductSchema = z.object({
+  id: z.string().uuid().optional(),
   name: z.string().min(2, 'Le nom du bijou est requis').max(255),
   slug: z.string().min(2).max(255).regex(/^[a-z0-9-]+$/, 'Slug invalide (minuscules et tirets uniquement)'),
   description: z.string().min(10, 'La description doit faire au moins 10 caractères'),
@@ -49,10 +70,15 @@ export const ProductSchema = z.object({
     'made_to_order',
     'unique_piece',
   ]),
-  featured: z.boolean(),
-  sell_mode: z.enum(['inherit', 'online', 'contact_only']),
+  featured: z.boolean().default(false),
+  sell_mode: z.enum(['inherit', 'online', 'contact_only']).default('inherit'),
   material_details: z.string().max(255).nullable().optional(),
   gemstone_details: z.string().max(255).nullable().optional(),
+  stock_quantity: z.number().int().min(0).default(0),
+  meta_title: z.string().max(255).nullable().optional(),
+  meta_description: z.string().nullable().optional(),
+  variants: z.array(ProductVariantSchema).optional(),
+  images: z.array(ProductImageSchema).optional(),
 });
 
 export const ContactInquirySchema = z.object({
@@ -78,17 +104,35 @@ export const MediaUploadValidationSchema = z.object({
 });
 
 export const CategorySchema = z.object({
+  id: z.string().uuid().optional(),
   name: z.string().min(2).max(100),
   slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().max(1000).nullable().optional(),
-  position: z.number().int().min(0),
-  active: z.boolean(),
+  image_url: z.string().nullable().optional(),
+  hero_url: z.string().nullable().optional(),
+  position: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+  meta_title: z.string().max(255).nullable().optional(),
+  meta_description: z.string().nullable().optional(),
 });
 
 export const CollectionSchema = z.object({
+  id: z.string().uuid().optional(),
   name: z.string().min(2).max(100),
   slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().max(1000).nullable().optional(),
-  position: z.number().int().min(0),
-  active: z.boolean(),
+  image_url: z.string().nullable().optional(),
+  hero_url: z.string().nullable().optional(),
+  position: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+  meta_title: z.string().max(255).nullable().optional(),
+  meta_description: z.string().nullable().optional(),
+});
+
+export const InventoryAdjustmentSchema = z.object({
+  product_id: z.string().uuid().nullable().optional(),
+  variant_id: z.string().uuid().nullable().optional(),
+  new_quantity: z.number().int().min(0, 'La quantité ne peut être négative'),
+  reason: z.enum(['restock', 'sale', 'adjustment', 'return', 'initial', 'manual_adjustment']),
+  reference_id: z.string().max(100).nullable().optional(),
 });

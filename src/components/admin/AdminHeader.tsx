@@ -12,14 +12,14 @@ export async function AdminHeader({ admin }: AdminHeaderProps = {}) {
   const settings = await getStoreSettings();
 
   return (
-    <header className="h-16 bg-[#181816] border-b border-[#282725] px-6 flex items-center justify-between">
+    <header className="h-16 bg-[#181816] border-b border-[#282725] pl-16 pr-6 md:px-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <span className="text-xs text-[#9E9589] uppercase tracking-wider">
           Maison Perle Noire
         </span>
         <span className="text-[#3E3D3A]">/</span>
         <span className="text-xs text-[#FAF8F5] font-medium">
-          Panneau de Direction
+          Panneau d’Administration
         </span>
       </div>
 
@@ -34,10 +34,10 @@ export async function AdminHeader({ admin }: AdminHeaderProps = {}) {
           </div>
           <div className="text-left hidden md:block">
             <span className="text-xs text-[#FAF8F5] font-medium block leading-none">
-              {admin?.full_name || 'Directeur Joaillier'}
+              {admin?.full_name || 'Administrateur'}
             </span>
             <span className="text-[10px] text-[#736B5E] block mt-0.5 capitalize">
-              {admin?.role?.replace('_', ' ') || 'Super Admin'}
+              {admin?.role?.replace('_', ' ') || 'Admin'}
             </span>
           </div>
         </div>
