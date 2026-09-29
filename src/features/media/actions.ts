@@ -373,8 +373,20 @@ export async function getMediaListAdmin(): Promise<{
 }
 
 /**
- * Deletes a media file from Storage and DB with strict usage verification and storage_path.
- * Never deletes or returns success if the media is currently used anywhere in the store.
+ * Deletes a media file using a compensatory soft-delete strategy:
+ *
+ * 1. requireAdmin
+ * 2. usage_count must be 0
+ * 3. Mark media as pending_delete (soft-delete)
+ * 4. Delete from Storage
+ * 5a. If Storage OK → hard-delete DB record
+ * 5b. If Storage fails → rollback soft-delete flag (set back to active)
+ *
+ * Il est INTERDIT de prétendre que Storage + DB sont transactionnels : ils ne le sont pas.
+ * Cette stratégie compensatoire garantit la cohérence dans les deux cas d'échec.
+ *
+ * Note : le parsing URL legacy est conservé uniquement pour les anciens
+ * enregistrements sans storage_path. Les nouveaux médias ont toujours storage_path.
  */
 export async function deleteMediaAction(mediaId: string): Promise<{ success: boolean; error?: string }> {
   let admin;
@@ -392,7 +404,7 @@ export async function deleteMediaAction(mediaId: string): Promise<{ success: boo
   try {
     const supabase = await createClient();
 
-    // 1. Fetch media record to get storage_path and file_path
+    // 1. Fetch media record
     const { data: media, error: fetchErr } = await supabase
       .from('media')
       .select('*')
@@ -403,7 +415,15 @@ export async function deleteMediaAction(mediaId: string): Promise<{ success: boo
       return { success: false, error: 'Média introuvable' };
     }
 
-    // 2. Real comprehensive usage check across all tables
+    // 2. Refuse si déjà en cours de suppression
+    if (media.deleted_at !== null && media.deleted_at !== undefined) {
+      return {
+        success: false,
+        error: 'Ce média est déjà en cours de suppression ou a été supprimé.',
+      };
+    }
+
+    // 3. Vérification d'usage complète
     const usage = await inspectMediaUsage(supabase, media.file_path, media.storage_path);
     if (usage.totalUsage > 0) {
       return {
@@ -412,12 +432,29 @@ export async function deleteMediaAction(mediaId: string): Promise<{ success: boo
       };
     }
 
-    // 3. Resolve relative storage path strictly from media.storage_path
+    // 4. Soft-delete préventif (marquage pending_delete)
+    const { error: markErr } = await supabase
+      .from('media')
+      .update({
+        deleted_at: new Date().toISOString(),
+        deletion_status: 'pending_delete',
+      })
+      .eq('id', mediaId);
+
+    if (markErr) {
+      return { success: false, error: `Impossible de marquer le média pour suppression : ${markErr.message}` };
+    }
+
+    // 5. Résolution du chemin Storage
+    // storage_path est obligatoire pour les nouveaux médias.
+    // Pour les anciens médias (LEGACY), tentative de reconstruction depuis l'URL publique.
     let relativeStoragePath: string | null = media.storage_path || null;
     if (!relativeStoragePath && media.file_path) {
+      // LEGACY FALLBACK : reconstruction depuis URL — uniquement pour les enregistrements
+      // antérieurs à la migration 00005 qui n'ont pas de storage_path.
       try {
         const urlObj = new URL(media.file_path);
-        const match = urlObj.pathname.match(/\/(?:jewelry-media|uploads)\/(.+)$/);
+        const match = urlObj.pathname.match(/\/object\/public\/[^/]+\/(.+)$/);
         if (match && match[1]) {
           relativeStoragePath = decodeURIComponent(match[1]);
         }
@@ -426,31 +463,43 @@ export async function deleteMediaAction(mediaId: string): Promise<{ success: boo
       }
     }
 
-    // 4. Remove from Storage first if path resolved
+    // 6. Suppression Storage
     if (relativeStoragePath) {
       const { error: storageRemoveErr } = await supabase.storage
         .from(BUCKET_NAME)
         .remove([relativeStoragePath]);
 
       if (storageRemoveErr) {
+        // ROLLBACK : remettre le média à l'état actif
+        await supabase
+          .from('media')
+          .update({ deleted_at: null, deletion_status: 'failed' })
+          .eq('id', mediaId);
+
         return {
           success: false,
-          error: `Échec de suppression du fichier physique Storage : ${storageRemoveErr.message}. La suppression de la base de données a été annulée.`,
+          error: `Échec de la suppression Storage : ${storageRemoveErr.message}. Le média a été restauré à l'état actif.`,
         };
       }
     }
 
-    // 5. Delete from media table
+    // 7. Suppression DB (après succès Storage confirmé)
     const { error: deleteErr } = await supabase.from('media').delete().eq('id', mediaId);
 
     if (deleteErr) {
+      // Storage supprimé mais DB échoue → marquer 'deleted' (orphan connu, pas rollback possible)
+      await supabase
+        .from('media')
+        .update({ deletion_status: 'deleted' })
+        .eq('id', mediaId);
+
       return {
         success: false,
-        error: `Erreur lors de la suppression de l’enregistrement média : ${deleteErr.message}`,
+        error: `Le fichier Storage a été supprimé mais l'enregistrement DB n'a pas pu être supprimé : ${deleteErr.message}. Il sera nettoyé lors du prochain passage de maintenance.`,
       };
     }
 
-    // 6. Audit log
+    // 8. Audit log
     await supabase.from('activity_logs').insert({
       admin_id: admin.id,
       action: 'delete_media',
@@ -458,7 +507,7 @@ export async function deleteMediaAction(mediaId: string): Promise<{ success: boo
       entity_id: mediaId,
       details: {
         filename: media.filename,
-        storage_path: media.storage_path || relativeStoragePath,
+        storage_path: relativeStoragePath,
       },
     });
 

@@ -296,15 +296,18 @@ export async function getProductByIdAdmin(id: string): Promise<{
 
 /**
  * Admin: Create a new product with optional variants and images.
+ *
+ * RÈGLE STRICTE : La RPC admin_save_product est une dépendance obligatoire du schéma.
+ * Aucune création multi-entité (produit + variantes + images) n'est autorisée hors de cette RPC.
+ * Si elle est absente (migration non exécutée), retourner une erreur explicite.
  */
 export async function createProductAction(payload: unknown): Promise<{
   success: boolean;
   product?: Product;
   error?: string;
 }> {
-  let admin;
   try {
-    admin = await requireAdmin();
+    await requireAdmin();
   } catch (authError: unknown) {
     return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
   }
@@ -313,7 +316,7 @@ export async function createProductAction(payload: unknown): Promise<{
   if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
     return {
       success: false,
-      error: 'Base de données non configurée. Impossible d’enregistrer sans Supabase.',
+      error: 'Base de données non configurée. Impossible d\'enregistrer sans Supabase.',
     };
   }
 
@@ -360,7 +363,7 @@ export async function createProductAction(payload: unknown): Promise<{
       is_primary: img.is_primary ?? idx === 0,
     }));
 
-    // 1. Try atomic PostgreSQL RPC admin_save_product
+    // Appel exclusif à la RPC atomique admin_save_product
     const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_save_product', {
       p_product_id: null,
       p_product_data: productPayload,
@@ -368,95 +371,29 @@ export async function createProductAction(payload: unknown): Promise<{
       p_images: imagesPayload,
     });
 
-    let productId: string;
-
-    if (!rpcErr && rpcData) {
-      productId = (rpcData as { product_id: string }).product_id;
-    } else {
-      // If RPC is missing in local dev, run strict sequential fallback with rollback
-      if (rpcErr && !rpcErr.message.includes('function public.admin_save_product') && !rpcErr.message.includes('could not find function')) {
-        return { success: false, error: rpcErr.message };
-      }
-
-      const { data: insertedProduct, error: insertError } = await supabase
-        .from('products')
-        .insert({
-          name: validated.name,
-          slug: validated.slug,
-          description: validated.description,
-          short_description: validated.short_description || null,
-          sku: validated.sku || null,
-          base_price: validated.base_price,
-          compare_at_price: validated.compare_at_price || null,
-          category_id: validated.category_id || null,
-          collection_id: validated.collection_id || null,
-          status: validated.status as ProductStatus,
-          featured: validated.featured,
-          sell_mode: validated.sell_mode,
-          material_details: validated.material_details || null,
-          gemstone_details: validated.gemstone_details || null,
-          stock_quantity: validated.stock_quantity || 0,
-          meta_title: validated.meta_title || null,
-          meta_description: validated.meta_description || null,
-        })
-        .select('id')
-        .single();
-
-      if (insertError || !insertedProduct) {
-        return {
-          success: false,
-          error: insertError?.message || 'Erreur lors de l’insertion du produit.',
-        };
-      }
-
-      productId = insertedProduct.id;
-
-      // Insert variants with rollback on error
-      if (variantsPayload.length > 0) {
-        const { error: variantError } = await supabase
-          .from('product_variants')
-          .insert(variantsPayload.map((v) => ({ ...v, product_id: productId })));
-
-        if (variantError) {
-          await supabase.from('products').delete().eq('id', productId);
-          return { success: false, error: `Erreur variantes : ${variantError.message}. Création annulée.` };
-        }
-      }
-
-      // Insert images with rollback on error
-      if (imagesPayload.length > 0) {
-        const { error: imgError } = await supabase
-          .from('product_images')
-          .insert(imagesPayload.map((img) => ({ ...img, product_id: productId })));
-
-        if (imgError) {
-          await supabase.from('product_variants').delete().eq('product_id', productId);
-          await supabase.from('products').delete().eq('id', productId);
-          return { success: false, error: `Erreur images : ${imgError.message}. Création annulée.` };
-        }
-      }
-
-      // Initial stock movement
-      if (validated.stock_quantity && validated.stock_quantity > 0) {
-        await supabase.from('inventory_movements').insert({
-          product_id: productId,
-          change_amount: validated.stock_quantity,
-          previous_quantity: 0,
-          new_quantity: validated.stock_quantity,
-          reason: 'initial',
-          created_by: admin.id,
-        });
-      }
-
-      // Activity log
-      await supabase.from('activity_logs').insert({
-        admin_id: admin.id,
-        action: 'create_product',
-        entity_type: 'product',
-        entity_id: productId,
-        details: { name: validated.name, sku: validated.sku, price: validated.base_price },
-      });
+    // RPC absente → erreur explicite, pas de fallback
+    if (
+      rpcErr &&
+      (rpcErr.message.includes('function public.admin_save_product') ||
+        rpcErr.message.includes('could not find function'))
+    ) {
+      return {
+        success: false,
+        error:
+          'Migration de base de données manquante : admin_save_product indisponible. ' +
+          'Exécutez les migrations Supabase avant de créer un produit.',
+      };
     }
+
+    if (rpcErr) {
+      return { success: false, error: rpcErr.message };
+    }
+
+    if (!rpcData) {
+      return { success: false, error: 'La RPC admin_save_product n\'a retourné aucune donnée.' };
+    }
+
+    const productId = (rpcData as { product_id: string }).product_id;
 
     revalidatePath('/bijoux');
     revalidatePath('/admin/produits');
@@ -471,14 +408,17 @@ export async function createProductAction(payload: unknown): Promise<{
 
 /**
  * Admin: Update an existing product atomically, including syncing its variants and images.
+ *
+ * RÈGLE STRICTE : La RPC admin_save_product est une dépendance obligatoire du schéma.
+ * Aucune mise à jour multi-entité (produit + variantes + images) n'est autorisée hors RPC.
+ * Si elle est absente (migration non exécutée), retourner une erreur explicite.
  */
 export async function updateProductAction(
   id: string,
   payload: unknown
 ): Promise<{ success: boolean; product?: Product; error?: string }> {
-  let admin;
   try {
-    admin = await requireAdmin();
+    await requireAdmin();
   } catch (authError: unknown) {
     return { success: false, error: authError instanceof Error ? authError.message : 'Non autorisé' };
   }
@@ -531,7 +471,7 @@ export async function updateProductAction(
       is_primary: img.is_primary ?? idx === 0,
     }));
 
-    // 1. Try atomic PostgreSQL RPC admin_save_product
+    // Appel exclusif à la RPC atomique admin_save_product
     const { error: rpcErr } = await supabase.rpc('admin_save_product', {
       p_product_id: id,
       p_product_data: productPayload,
@@ -539,116 +479,22 @@ export async function updateProductAction(
       p_images: imagesPayload,
     });
 
+    // RPC absente → erreur explicite, pas de fallback
+    if (
+      rpcErr &&
+      (rpcErr.message.includes('function public.admin_save_product') ||
+        rpcErr.message.includes('could not find function'))
+    ) {
+      return {
+        success: false,
+        error:
+          'Migration de base de données manquante : admin_save_product indisponible. ' +
+          'Exécutez les migrations Supabase avant de modifier un produit.',
+      };
+    }
+
     if (rpcErr) {
-      if (!rpcErr.message.includes('function public.admin_save_product') && !rpcErr.message.includes('could not find function')) {
-        return { success: false, error: rpcErr.message };
-      }
-
-      // Fallback
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({
-          name: validated.name,
-          slug: validated.slug,
-          description: validated.description,
-          short_description: validated.short_description || null,
-          sku: validated.sku || null,
-          base_price: validated.base_price,
-          compare_at_price: validated.compare_at_price || null,
-          category_id: validated.category_id || null,
-          collection_id: validated.collection_id || null,
-          status: validated.status as ProductStatus,
-          featured: validated.featured,
-          sell_mode: validated.sell_mode,
-          material_details: validated.material_details || null,
-          gemstone_details: validated.gemstone_details || null,
-          stock_quantity: validated.stock_quantity ?? 0,
-          meta_title: validated.meta_title || null,
-          meta_description: validated.meta_description || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (updateError) {
-        return { success: false, error: updateError.message };
-      }
-
-      // Synchronize variants
-      if (validated.variants !== undefined) {
-        const { data: existingVariants } = await supabase
-          .from('product_variants')
-          .select('id')
-          .eq('product_id', id);
-
-        const existingIds = (existingVariants || []).map((v) => v.id);
-        const incomingIds = validated.variants.map((v) => v.id).filter(Boolean) as string[];
-
-        const idsToDelete = existingIds.filter((idVal) => !incomingIds.includes(idVal));
-        if (idsToDelete.length > 0) {
-          const { error: delErr } = await supabase.from('product_variants').delete().in('id', idsToDelete);
-          if (delErr) return { success: false, error: delErr.message };
-        }
-
-        for (const v of validated.variants) {
-          if (v.id && existingIds.includes(v.id)) {
-            const { error: upVarErr } = await supabase
-              .from('product_variants')
-              .update({
-                title: v.title,
-                sku: v.sku || null,
-                price: v.price,
-                size: v.size || null,
-                material: v.material || null,
-                color: v.color || null,
-                stock_quantity: v.stock_quantity || 0,
-                active: v.active ?? true,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', v.id);
-            if (upVarErr) return { success: false, error: upVarErr.message };
-          } else {
-            const { error: insVarErr } = await supabase.from('product_variants').insert({
-              product_id: id,
-              title: v.title,
-              sku: v.sku || null,
-              price: v.price,
-              size: v.size || null,
-              material: v.material || null,
-              color: v.color || null,
-              stock_quantity: v.stock_quantity || 0,
-              active: v.active ?? true,
-            });
-            if (insVarErr) return { success: false, error: insVarErr.message };
-          }
-        }
-      }
-
-      // Synchronize images with exact positions
-      if (validated.images !== undefined) {
-        await supabase.from('product_images').delete().eq('product_id', id);
-
-        if (validated.images.length > 0) {
-          const { error: insImgErr } = await supabase.from('product_images').insert(
-            validated.images.map((img, idx) => ({
-              product_id: id,
-              url: img.url,
-              alt: img.alt || validated.name,
-              position: img.position ?? idx,
-              is_primary: img.is_primary ?? idx === 0,
-            }))
-          );
-          if (insImgErr) return { success: false, error: insImgErr.message };
-        }
-      }
-
-      // Activity log
-      await supabase.from('activity_logs').insert({
-        admin_id: admin.id,
-        action: 'update_product',
-        entity_type: 'product',
-        entity_id: id,
-        details: { name: validated.name },
-      });
+      return { success: false, error: rpcErr.message };
     }
 
     revalidatePath('/bijoux');
