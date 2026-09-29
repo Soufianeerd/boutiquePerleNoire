@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import { AdminUser } from '@/types/database';
 import {
   LayoutDashboard,
   Gem,
@@ -19,7 +21,11 @@ import {
   LogOut,
 } from 'lucide-react';
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  admin?: AdminUser;
+}
+
+export function AdminSidebar({ admin }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -37,6 +43,17 @@ export function AdminSidebar() {
     { name: 'Paramètres & Modes', href: '/admin/parametres', icon: Sliders },
   ];
 
+  const handleLogout = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignored
+    }
+    router.push('/admin/login');
+    router.refresh();
+  };
+
   return (
     <aside className="w-64 bg-[#141414] text-[#FAF8F5] border-r border-[#262624] flex flex-col justify-between shrink-0">
       <div>
@@ -50,6 +67,16 @@ export function AdminSidebar() {
               Administration Joaillerie
             </span>
           </Link>
+          {admin && (
+            <div className="mt-3 pt-3 border-t border-[#222220]">
+              <span className="text-xs text-[#FAF8F5] block truncate font-medium">
+                {admin.full_name}
+              </span>
+              <span className="text-[10px] text-[#736B5E] block truncate">
+                {admin.email}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Navigation Menu */}
@@ -93,19 +120,14 @@ export function AdminSidebar() {
           <span className="text-[9px] uppercase tracking-widest text-[#736B5E]">Public</span>
         </Link>
 
-        <form action="/api/auth/logout" method="POST">
-          <button
-            type="button"
-            onClick={() => {
-              document.cookie = 'pn_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-              router.push('/admin/login');
-            }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#8C827A] hover:text-red-400 hover:bg-[#1C1C1A] transition-colors text-left"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Déconnexion</span>
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#8C827A] hover:text-red-400 hover:bg-[#1C1C1A] transition-colors text-left"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Déconnexion</span>
+        </button>
       </div>
     </aside>
   );

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getStoreSettings, updateStoreSettings } from '@/features/settings/actions';
+import { getAuthenticatedAdmin } from '@/lib/auth/admin';
 
 export async function GET() {
   const settings = await getStoreSettings();
@@ -7,6 +8,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const admin = await getAuthenticatedAdmin();
+  if (!admin) {
+    return NextResponse.json(
+      { error: 'Non autorisé : privilèges administrateur requis.' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const result = await updateStoreSettings(body);

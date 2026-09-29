@@ -1,9 +1,14 @@
 import React from 'react';
 import { getStoreSettings } from '@/features/settings/actions';
+import { AdminUser } from '@/types/database';
 import { ModeQuickToggle } from './ModeQuickToggle';
 import { ShieldCheck } from 'lucide-react';
 
-export async function AdminHeader() {
+interface AdminHeaderProps {
+  admin?: AdminUser;
+}
+
+export async function AdminHeader({ admin }: AdminHeaderProps = {}) {
   const settings = await getStoreSettings();
 
   return (
@@ -29,10 +34,10 @@ export async function AdminHeader() {
           </div>
           <div className="text-left hidden md:block">
             <span className="text-xs text-[#FAF8F5] font-medium block leading-none">
-              Directeur Joaillier
+              {admin?.full_name || 'Directeur Joaillier'}
             </span>
-            <span className="text-[10px] text-[#736B5E] block mt-0.5">
-              Super Admin
+            <span className="text-[10px] text-[#736B5E] block mt-0.5 capitalize">
+              {admin?.role?.replace('_', ' ') || 'Super Admin'}
             </span>
           </div>
         </div>
