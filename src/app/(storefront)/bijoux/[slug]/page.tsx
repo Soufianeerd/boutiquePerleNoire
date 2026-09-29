@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProductBySlug, getProducts } from '@/features/products/actions';
 import { getStoreSettings } from '@/features/settings/actions';
-import { ProductDetailClient } from './ProductDetailClient';
+import { ProductDetailClient } from '@/components/storefront/ProductDetailClient';
 import { ProductCard } from '@/components/storefront/ProductCard';
 
 export async function generateMetadata(props: {

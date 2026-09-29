@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { getStoreSettings } from '@/features/settings/actions';
-import { ContactFormClient } from './ContactFormClient';
+import { ContactFormClient } from '@/components/storefront/ContactFormClient';
 import { Phone, MessageSquare, Mail, Calendar } from 'lucide-react';
 
 export const metadata: Metadata = {
